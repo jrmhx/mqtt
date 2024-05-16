@@ -24,12 +24,14 @@ public class Analyser {
             MqttClient client = new MqttClient(BROKER_URL, CLIENT_ID, new MemoryPersistence());
             client.connect();
 
-            for (int delay : delays) {
-                for (int qos : qoss) {
-                    for (int instanceCount : instanceCounts) {
-                        publishInstructions(client, qos, delay, instanceCount);
-                        List<String> messages = listenAndCollectData(client, instanceCount, qos, delay);
-                        analyzeData(messages, qos, delay, instanceCount);
+            for (int subQos : qoss) {
+                for (int delay : delays) {
+                    for (int pubQos : qoss) {
+                        for (int instanceCount : instanceCounts) {
+                            publishInstructions(client, pubQos, delay, instanceCount);
+                            List<String> messages = listenAndCollectData(client, instanceCount, pubQos, delay, subQos);
+                            analyzeData(messages, pubQos, delay, instanceCount, subQos);
+                        }
                     }
                 }
             }
@@ -46,21 +48,24 @@ public class Analyser {
         client.publish(REQUEST_INSTANCE_COUNT, new MqttMessage(Integer.toString(instanceCount).getBytes()));
     }
 
-    private List<String> listenAndCollectData(MqttClient client, int instanceCount, int qos, int delay) throws MqttException, InterruptedException {
+    private List<String> listenAndCollectData(MqttClient client, int instanceCount, int pubQos, int delay, int subQos) throws MqttException, InterruptedException {
         List<String> messages = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(1);
 
-        client.subscribe("counter/#", (topic, message) -> {
+        String topicPath = "counter/" + instanceCount + "/" + pubQos + "/" + delay;
+        System.out.println("Listening topic: " + topicPath);
+
+        client.subscribe(topicPath, subQos, (topic, message) -> {
             String payload = new String(message.getPayload());
             messages.add(payload);
         });
 
         latch.await(60, TimeUnit.SECONDS);
-        client.unsubscribe("counter/#");
+        client.unsubscribe(topicPath);
         return messages;
     }
 
-    private void analyzeData(List<String> messages, int qos, int delay, int instanceCount) {
+    private void analyzeData(List<String> messages, int pubQos, int delay, int instanceCount, int subQos) {
         int totalMessages = messages.size();
         int expectedMessages;
         if (delay > 0) {
@@ -89,9 +94,10 @@ public class Analyser {
         double averageGap = totalMessages > 1 ? (double) totalGap / (totalMessages - 1) : 0;
 
         System.out.println("=== Test Configuration ===");
-        System.out.println("QoS: " + qos);
+        System.out.println("Pub QoS: " + pubQos);
+        System.out.println("Sub QoS: " + subQos);
         System.out.println("Delay: " + delay + "ms");
-        System.out.println("Publisher Instance: " + instanceCount);
+        System.out.println("Instance Count: " + instanceCount);
         System.out.println("--- Results ---");
         System.out.println("Total Messages Received: " + totalMessages);
         System.out.println("Expected Messages: " + expectedMessages);

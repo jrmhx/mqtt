@@ -23,39 +23,36 @@ public class Publisher {
     public void start() {
         try {
             MqttClient client = new MqttClient(BROKER_URL, CLIENT_ID_PREFIX + instance, new MemoryPersistence());
-            client.connect();
+
+            // Set up connection options with increased max inflight messages
+            MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setMaxInflight(1000); // Set the max inflight messages to a higher value
+
+            client.connect(connOpts);
 
             client.subscribe(REQUEST_QOS, this::handleRequest);
             client.subscribe(REQUEST_DELAY, this::handleRequest);
             client.subscribe(REQUEST_INSTANCE_COUNT, this::handleRequest);
 
             while (true) {
-                if (activeInstances == instance) {
-                    System.out.println("activeInstances: "+activeInstances+" qos: "+ qos + " delay:" + delay);
+                if (instance <= activeInstances) {
+                    System.out.println("activeInstances: " + activeInstances + " qos: " + qos + " delay: " + delay);
                     long endTime = System.currentTimeMillis() + 60000; // 60 seconds
-                    int counter = 0;
+                    long counter = 0;
 
                     while (System.currentTimeMillis() < endTime) {
                         String topic = String.format("counter/%d/%d/%d", instance, qos, delay);
-                        String message = Integer.toString(counter);
+                        String message = Long.toString(counter);
                         MqttMessage mqttMessage = new MqttMessage(message.getBytes());
                         mqttMessage.setQos(qos);
 
-                        // Introduce a small delay to avoid overwhelming the client
                         try {
                             client.publish(topic, mqttMessage);
                         } catch (MqttException e) {
                             e.printStackTrace();
                         }
-
                         counter++;
                         Thread.sleep(delay);
-//                        if (delay > 0) {
-//                            Thread.sleep(delay);
-//                        } else {
-//                            // Introduce a tiny delay when delay is set to 0ms
-//                            Thread.sleep(1);
-//                        }
                     }
                 }
 
