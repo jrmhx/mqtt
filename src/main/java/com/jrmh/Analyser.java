@@ -52,7 +52,7 @@ public class Analyser {
         List<String> messages = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(1);
 
-        String topicPath = "counter/" + instanceCount + "/" + pubQos + "/" + delay;
+        String topicPath = "counter/#";
         System.out.println("Listening topic: " + topicPath);
 
         client.subscribe(topicPath, subQos, (topic, message) -> {
