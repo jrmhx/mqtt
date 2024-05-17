@@ -25,7 +25,9 @@ public class Analyser {
         try {
             MqttClient client = new MqttClient(BROKER_URL, CLIENT_ID, new MemoryPersistence());
             MqttConnectOptions connOpts = new MqttConnectOptions();
-            connOpts.setMaxInflight(1000); // Set the max inflight messages
+            connOpts.setMaxInflight(1000); // Set the max inflight messages to a higher value
+            connOpts.setAutomaticReconnect(true); // Enable automatic reconnection
+            connOpts.setCleanSession(true);
 
             client.connect(connOpts);
 

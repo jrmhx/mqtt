@@ -35,6 +35,8 @@ public class Publisher {
             // Set up connection options with increased max inflight messages
             MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setMaxInflight(1000); // Set the max inflight messages to a higher value
+            connOpts.setAutomaticReconnect(true); // Enable automatic reconnection
+            connOpts.setCleanSession(true);
 
             client.connect(connOpts);
 
@@ -44,10 +46,11 @@ public class Publisher {
             client.subscribe(READY_TOPIC, 2, this::handleReady);
 
             while (true) {
+                if (instance == 1){
+                    counter.set(0);
+                }
                 // Wait for start signal from all publisher threads
                 startLatch.await();
-
-                counter.set(0);
 
                 if (instance <= activeInstances) {
                     System.out.println("activeInstances: " + activeInstances + " qos: " + qos + " delay: " + delay);
@@ -72,10 +75,11 @@ public class Publisher {
 
                 // Signal that this thread is done
                 doneLatch.countDown();
+                doneLatch.await();
 
                 // Reset the latches for the next round
                 if (doneLatch.getCount() == 0) {
-                    startLatch = new CountDownLatch(1);
+                    startLatch = new CountDownLatch(5);
                     doneLatch = new CountDownLatch(5);
                 }
 
