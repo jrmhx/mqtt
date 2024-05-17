@@ -14,12 +14,12 @@ public class Publisher {
     private static final String REQUEST_DELAY = "request/delay";
     private static final String REQUEST_INSTANCE_COUNT = "request/instancecount";
     private static final String READY_TOPIC = "instruction/ready";
-    private static AtomicLong counter = new AtomicLong(0);
+    private static final AtomicLong counter = new AtomicLong(0);
 
     private static CountDownLatch startLatch = new CountDownLatch(1);
     private static CountDownLatch doneLatch = new CountDownLatch(5);
 
-    private int instance;
+    private final int instance;
     private int qos = 0;
     private int delay = 0;
     private int activeInstances = 0;

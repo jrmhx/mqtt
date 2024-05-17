@@ -16,9 +16,9 @@ public class Analyser {
     private static final String REQUEST_INSTANCE_COUNT = "request/instancecount";
     private static final String READY_TOPIC = "instruction/ready";
 
-    private int[] delays = {0, 1, 2, 4};
-    private int[] qoss = {0, 1, 2};
-    private int[] instanceCounts = {1, 2, 3, 4, 5};
+    private final int[] delays = {0, 1, 2, 4};
+    private final int[] qoss = {0, 1, 2};
+    private final int[] instanceCounts = {1, 2, 3, 4, 5};
     private long maxCounter = 0;
 
     public void start() {
