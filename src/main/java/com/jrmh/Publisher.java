@@ -6,13 +6,14 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import java.util.concurrent.CountDownLatch;
 
 public class Publisher {
-    private static final int TIME = 5;
+    private static final int TIME = 60;
     private static final String BROKER_URL = "tcp://localhost:1883";
     private static final String CLIENT_ID_PREFIX = "pub-";
     private static final String REQUEST_QOS = "request/qos";
     private static final String REQUEST_DELAY = "request/delay";
     private static final String REQUEST_INSTANCE_COUNT = "request/instancecount";
     private static final String READY_TOPIC = "instruction/ready";
+    private static long counter;
 
     private static CountDownLatch startLatch = new CountDownLatch(1);
     private static CountDownLatch doneLatch = new CountDownLatch(5);
@@ -45,7 +46,7 @@ public class Publisher {
                 // Wait for start signal from all publisher threads
                 startLatch.await();
 
-                long counter = 0;
+                counter = 0;
 
                 if (instance <= activeInstances) {
                     System.out.println("activeInstances: " + activeInstances + " qos: " + qos + " delay: " + delay);

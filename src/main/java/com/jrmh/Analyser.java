@@ -8,7 +8,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class Analyser {
-    private static final int TIME = 5;
+    private static final int TIME = 60;
     private static final String BROKER_URL = "tcp://localhost:1883";
     private static final String CLIENT_ID = "analyser";
     private static final String REQUEST_QOS = "request/qos";
@@ -19,6 +19,7 @@ public class Analyser {
     private int[] delays = {0, 1, 2, 4};
     private int[] qoss = {0, 1, 2};
     private int[] instanceCounts = {1, 2, 3, 4, 5};
+    private long maxCounter = 0;
 
     public void start() {
         try {
@@ -32,10 +33,11 @@ public class Analyser {
                 for (int delay : delays) {
                     for (int pubQos : qoss) {
                         for (int instanceCount : instanceCounts) {
+                            maxCounter = 0;
                             publishInstructions(client, pubQos, delay, instanceCount);
                             sendReadySignal(client);
                             List<String> messages = listenAndCollectData(client, instanceCount, pubQos, delay, subQos);
-                            analyzeData(messages, pubQos, delay, instanceCount, subQos);
+                            analyzeData(messages, pubQos, delay, instanceCount, subQos, maxCounter);
                         }
                     }
                 }
@@ -75,6 +77,8 @@ public class Analyser {
 
         client.subscribe(topicPath, subQos, (topic, message) -> {
             String payload = new String(message.getPayload());
+            long currentCounter = Long.parseLong(payload);
+            maxCounter = Math.max(maxCounter, currentCounter);
             messages.add(payload);
         });
 
@@ -83,7 +87,7 @@ public class Analyser {
         return messages;
     }
 
-    private void analyzeData(List<String> messages, int pubQos, int delay, int instanceCount, int subQos) {
+    private void analyzeData(List<String> messages, int pubQos, int delay, int instanceCount, int subQos, long totalExpectedMessages) {
         int totalMessages = messages.size();
 
         int outOfOrderCount = 0;
@@ -101,7 +105,7 @@ public class Analyser {
             previous = current;
         }
 
-        // double messageLossRate = ((double) (totalExpectedMessages - totalMessages) / totalExpectedMessages) * 100;
+        double messageLossRate = ((double) (totalExpectedMessages - totalMessages) / totalExpectedMessages) * 100;
         double outOfOrderRate = ((double) outOfOrderCount / totalMessages) * 100;
         double averageGap = totalMessages > 1 ? (double) totalGap / (totalMessages - 1) : 0;
 
@@ -112,8 +116,8 @@ public class Analyser {
         System.out.println("Instance Count: " + instanceCount);
         System.out.println("--- Results ---");
         System.out.println("Total Messages Received: " + totalMessages);
-        // System.out.println("Expected Messages: " + totalExpectedMessages);
-        // System.out.println("Message Loss Rate: " + String.format("%.2f", messageLossRate) + "%");
+        System.out.println("Expected Messages: " + totalExpectedMessages);
+        System.out.println("Message Loss Rate: " + String.format("%.2f", messageLossRate) + "%");
         System.out.println("Out-of-Order Message Rate: " + String.format("%.2f", outOfOrderRate) + "%");
         System.out.println("Average Inter-Message Gap: " + String.format("%.2f", averageGap) + "ms");
         System.out.println("--------------------------");
