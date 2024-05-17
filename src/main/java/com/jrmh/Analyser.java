@@ -20,6 +20,9 @@ public class Analyser {
     private final int[] qoss = {0, 1, 2};
     private final int[] instanceCounts = {1, 2, 3, 4, 5};
     private long maxCounter = 0;
+    private List<Integer> medianMsgGaps = new ArrayList<>();
+    private long prevMsg = -1;
+    private long prevMsgTimestamp = -1;
 
     public void start() {
         try {
@@ -38,7 +41,7 @@ public class Analyser {
                             maxCounter = 0;
                             publishInstructions(client, pubQos, delay, instanceCount);
                             sendReadySignal(client);
-                            List<String> messages = listenAndCollectData(client, instanceCount, pubQos, delay, subQos);
+                            List<Long> messages = listenAndCollectData(client, instanceCount, pubQos, delay, subQos);
                             analyzeData(messages, pubQos, delay, instanceCount, subQos);
                         }
                     }
@@ -70,8 +73,8 @@ public class Analyser {
     }
 
 
-    private List<String> listenAndCollectData(MqttClient client, int instanceCount, int pubQos, int delay, int subQos) throws MqttException, InterruptedException {
-        List<String> messages = new ArrayList<>();
+    private List<Long> listenAndCollectData(MqttClient client, int instanceCount, int pubQos, int delay, int subQos) throws MqttException, InterruptedException {
+        List<Long> messages = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(1);
 
         String topicPath = "counter/#";
@@ -79,7 +82,14 @@ public class Analyser {
 
         client.subscribe(topicPath, subQos, (topic, message) -> {
             String payload = new String(message.getPayload());
-            messages.add(payload);
+            long currentMsgTimestamp = System.currentTimeMillis();
+            long currentMsg = Long.parseLong(payload);
+            messages.add(currentMsg);
+            if (this.prevMsg != -1 && currentMsg - prevMsg == 1){
+                medianMsgGaps.add((int) (currentMsgTimestamp - this.prevMsgTimestamp));
+            }
+            this.prevMsg = currentMsg;
+            this.prevMsgTimestamp = currentMsgTimestamp;
         });
 
         latch.await(TIME, TimeUnit.SECONDS);
@@ -87,29 +97,25 @@ public class Analyser {
         return messages;
     }
 
-    private void analyzeData(List<String> messages, int pubQos, int delay, int instanceCount, int subQos) {
+    private void analyzeData(List<Long> messages, int pubQos, int delay, int instanceCount, int subQos) {
         int totalMessages = messages.size();
 
         int outOfOrderCount = 0;
-        long totalGap = 0;
         long previous = -1;
 
-        for (String msg : messages) {
-            long current = Long.parseLong(msg);
-            maxCounter = Math.max(maxCounter, current);
-            if (previous != -1 && current < previous) {
+        for (long msg : messages) {
+            maxCounter = Math.max(maxCounter, msg);
+            if (previous != -1 && msg < previous) {
                 outOfOrderCount++;
             }
-            if (previous != -1) {
-                totalGap += (current - previous);
-            }
-            previous = current;
+            previous = msg;
         }
 
         long totalExpectedMessages = maxCounter + 1;
         double messageLossRate = ((double) (totalExpectedMessages - totalMessages) / totalExpectedMessages) * 100;
         double outOfOrderRate = ((double) outOfOrderCount / totalMessages) * 100;
-        double averageGap = totalMessages > 1 ? (double) totalGap / (totalMessages - 1) : 0;
+        Collections.sort(this.medianMsgGaps);
+        double medianMsgGap = getMedian(this.medianMsgGaps);
 
         System.out.println("=== Test Configuration ===");
         System.out.println("Pub QoS: " + pubQos);
@@ -121,8 +127,25 @@ public class Analyser {
         System.out.println("Expected Messages: " + totalExpectedMessages);
         System.out.println("Message Loss Rate: " + String.format("%.2f", messageLossRate) + "%");
         System.out.println("Out-of-Order Message Rate: " + String.format("%.2f", outOfOrderRate) + "%");
-        System.out.println("Average Inter-Message Gap: " + String.format("%.2f", averageGap) + "ms");
+        System.out.println("Median Inter-Message Gap: " + String.format("%.2f", medianMsgGap) + "ms");
         System.out.println("--------------------------");
+    }
+
+    public static double getMedian(List<Integer> list) {
+        int size = list.size();
+        if (size == 0) {
+            throw new IllegalArgumentException("List is empty");
+        }
+
+        if (size % 2 == 1) {
+            // Odd number of elements, return the middle element
+            return list.get(size / 2);
+        } else {
+            // Even number of elements, return the average of the two middle elements
+            int middle1 = list.get((size / 2) - 1);
+            int middle2 = list.get(size / 2);
+            return (middle1 + middle2) / 2.0;
+        }
     }
 
     public static void main(String[] args) {
