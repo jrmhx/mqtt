@@ -4,6 +4,7 @@ import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Publisher {
     private static final int TIME = 60;
@@ -13,7 +14,7 @@ public class Publisher {
     private static final String REQUEST_DELAY = "request/delay";
     private static final String REQUEST_INSTANCE_COUNT = "request/instancecount";
     private static final String READY_TOPIC = "instruction/ready";
-    private static long counter;
+    private static AtomicLong counter = new AtomicLong(0);
 
     private static CountDownLatch startLatch = new CountDownLatch(1);
     private static CountDownLatch doneLatch = new CountDownLatch(5);
@@ -46,7 +47,7 @@ public class Publisher {
                 // Wait for start signal from all publisher threads
                 startLatch.await();
 
-                counter = 0;
+                counter.set(0);
 
                 if (instance <= activeInstances) {
                     System.out.println("activeInstances: " + activeInstances + " qos: " + qos + " delay: " + delay);
@@ -54,7 +55,7 @@ public class Publisher {
 
                     while (System.currentTimeMillis() < endTime) {
                         String topic = String.format("counter/%d/%d/%d", instance, qos, delay);
-                        String message = Long.toString(counter);
+                        String message = Long.toString(counter.get());
                         MqttMessage mqttMessage = new MqttMessage(message.getBytes());
                         mqttMessage.setQos(qos);
 
@@ -63,7 +64,7 @@ public class Publisher {
                         } catch (MqttException e) {
                             e.printStackTrace();
                         }
-                        counter++;
+                        counter.incrementAndGet();
                         Thread.sleep(delay);
                     }
 
