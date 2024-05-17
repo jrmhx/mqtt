@@ -7,22 +7,23 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Publisher {
-    private static final int TIME = 60;
+    private static final int TIME = 1;
     private static final String BROKER_URL = "tcp://localhost:1883";
     private static final String CLIENT_ID_PREFIX = "pub-";
     private static final String REQUEST_QOS = "request/qos";
     private static final String REQUEST_DELAY = "request/delay";
     private static final String REQUEST_INSTANCE_COUNT = "request/instancecount";
     private static final String READY_TOPIC = "instruction/ready";
+    private static final String COMPLETE = "complete";
     private static final AtomicLong counter = new AtomicLong(0);
 
     private static CountDownLatch startLatch = new CountDownLatch(1);
-    private static CountDownLatch doneLatch = new CountDownLatch(5);
+    private static CountDownLatch doneLatch = new CountDownLatch(6);
 
     private final int instance;
-    private int qos = 0;
-    private int delay = 0;
-    private int activeInstances = 0;
+    private static int qos = 0;
+    private static int delay = 0;
+    private static int activeInstances = 0;
 
     public Publisher(int instance) {
         this.instance = instance;
@@ -31,7 +32,6 @@ public class Publisher {
     public void start() {
         try {
             MqttClient client = new MqttClient(BROKER_URL, CLIENT_ID_PREFIX + instance, new MemoryPersistence());
-
             // Set up connection options with increased max inflight messages
             MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setMaxInflight(1000); // Set the max inflight messages to a higher value
@@ -40,20 +40,24 @@ public class Publisher {
 
             client.connect(connOpts);
 
-            client.subscribe(REQUEST_INSTANCE_COUNT, 2, this::handleRequest);
-            client.subscribe(REQUEST_QOS, 2, this::handleRequest);
-            client.subscribe(REQUEST_DELAY, 2, this::handleRequest);
-            client.subscribe(READY_TOPIC, 2, this::handleReady);
+            if (instance == 6){
+                client.subscribe(REQUEST_INSTANCE_COUNT, 2, this::handleRequest);
+                client.subscribe(REQUEST_QOS, 2, this::handleRequest);
+                client.subscribe(REQUEST_DELAY, 2, this::handleRequest);
+                client.subscribe(READY_TOPIC, 2, this::handleReady);
+            }
+
 
             while (true) {
-                if (instance == 1){
-                    counter.set(0);
-                }
                 // Wait for start signal from all publisher threads
                 startLatch.await();
 
+                if (instance == 6){
+                    startLatch = new CountDownLatch(1);
+                }
+
                 if (instance <= activeInstances) {
-                    System.out.println("activeInstances: " + activeInstances + " qos: " + qos + " delay: " + delay);
+                    System.out.println("actIns: " + activeInstances +", instance: "+ instance + ", qos: " + qos + ", delay: " + delay);
                     long endTime = System.currentTimeMillis() + TIME * 1000; // convert s to ms
 
                     while (System.currentTimeMillis() < endTime) {
@@ -70,21 +74,30 @@ public class Publisher {
                         counter.incrementAndGet();
                         Thread.sleep(delay);
                     }
-
                 }
 
                 // Signal that this thread is done
                 doneLatch.countDown();
+
+                // Wait for all threads to finish
                 doneLatch.await();
 
-                // Reset the latches for the next round
-                if (doneLatch.getCount() == 0) {
-                    startLatch = new CountDownLatch(5);
-                    doneLatch = new CountDownLatch(5);
+                if (instance == 6) {
+                    counter.set(0);
+                    doneLatch = new CountDownLatch(6);
+                    String message = "1";
+                    MqttMessage mqttMessage = new MqttMessage(message.getBytes());
+                    mqttMessage.setQos(2);
+                    try {
+                        client.publish(COMPLETE, mqttMessage);
+                    } catch (MqttException e) {
+                        e.printStackTrace();
+                    }
                 }
 
+
                 // Sleep briefly before checking for new instructions
-                Thread.sleep(TIME);
+                // Thread.sleep(TIME);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -112,7 +125,7 @@ public class Publisher {
     }
 
     public static void main(String[] args) {
-        for (int i = 1; i <= 5; i++) {
+        for (int i = 1; i <= 6; i++) {
             int instance = i;
             new Thread(() -> new Publisher(instance).start()).start();
         }

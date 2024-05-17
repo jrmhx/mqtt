@@ -8,21 +8,23 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class Analyser {
-    private static final int TIME = 60;
+    private static final int TIME = 1;
     private static final String BROKER_URL = "tcp://localhost:1883";
     private static final String CLIENT_ID = "analyser";
     private static final String REQUEST_QOS = "request/qos";
     private static final String REQUEST_DELAY = "request/delay";
     private static final String REQUEST_INSTANCE_COUNT = "request/instancecount";
     private static final String READY_TOPIC = "instruction/ready";
+    private static final String COMPLETE = "complete";
 
     private final int[] delays = {0, 1, 2, 4};
     private final int[] qoss = {0, 1, 2};
     private final int[] instanceCounts = {1, 2, 3, 4, 5};
     private long maxCounter = 0;
-    private List<Integer> medianMsgGaps = new ArrayList<>();
+    private final List<Long> medianMsgGaps = new ArrayList<>();
     private long prevMsg = -1;
     private long prevMsgTimestamp = -1;
+    private CountDownLatch latch = new CountDownLatch(1);
 
     public void start() {
         try {
@@ -34,15 +36,21 @@ public class Analyser {
 
             client.connect(connOpts);
 
+            client.subscribe(COMPLETE, 2, (topic, message) ->{
+                latch.countDown();
+            });
+
             for (int subQos : qoss) {
                 for (int delay : delays) {
                     for (int pubQos : qoss) {
                         for (int instanceCount : instanceCounts) {
                             maxCounter = 0;
+                            latch = new CountDownLatch(1);
                             publishInstructions(client, pubQos, delay, instanceCount);
                             sendReadySignal(client);
                             List<Long> messages = listenAndCollectData(client, instanceCount, pubQos, delay, subQos);
                             analyzeData(messages, pubQos, delay, instanceCount, subQos);
+                            latch.await();
                         }
                     }
                 }
@@ -72,7 +80,6 @@ public class Analyser {
         client.publish(READY_TOPIC, readyMsg);
     }
 
-
     private List<Long> listenAndCollectData(MqttClient client, int instanceCount, int pubQos, int delay, int subQos) throws MqttException, InterruptedException {
         List<Long> messages = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(1);
@@ -86,7 +93,7 @@ public class Analyser {
             long currentMsg = Long.parseLong(payload);
             messages.add(currentMsg);
             if (this.prevMsg != -1 && currentMsg - prevMsg == 1){
-                medianMsgGaps.add((int) (currentMsgTimestamp - this.prevMsgTimestamp));
+                medianMsgGaps.add(currentMsgTimestamp - this.prevMsgTimestamp);
             }
             this.prevMsg = currentMsg;
             this.prevMsgTimestamp = currentMsgTimestamp;
@@ -115,7 +122,7 @@ public class Analyser {
         double messageLossRate = ((double) (totalExpectedMessages - totalMessages) / totalExpectedMessages) * 100;
         double outOfOrderRate = ((double) outOfOrderCount / totalMessages) * 100;
         Collections.sort(this.medianMsgGaps);
-        double medianMsgGap = getMedian(this.medianMsgGaps);
+        long medianMsgGap = medianMsgGaps.get(medianMsgGaps.size() / 2);
 
         System.out.println("=== Test Configuration ===");
         System.out.println("Pub QoS: " + pubQos);
@@ -127,25 +134,8 @@ public class Analyser {
         System.out.println("Expected Messages: " + totalExpectedMessages);
         System.out.println("Message Loss Rate: " + String.format("%.2f", messageLossRate) + "%");
         System.out.println("Out-of-Order Message Rate: " + String.format("%.2f", outOfOrderRate) + "%");
-        System.out.println("Median Inter-Message Gap: " + String.format("%.2f", medianMsgGap) + "ms");
+        System.out.println("Median Inter-Message Gap: " + medianMsgGap + "ms");
         System.out.println("--------------------------");
-    }
-
-    public static double getMedian(List<Integer> list) {
-        int size = list.size();
-        if (size == 0) {
-            throw new IllegalArgumentException("List is empty");
-        }
-
-        if (size % 2 == 1) {
-            // Odd number of elements, return the middle element
-            return list.get(size / 2);
-        } else {
-            // Even number of elements, return the average of the two middle elements
-            int middle1 = list.get((size / 2) - 1);
-            int middle2 = list.get(size / 2);
-            return (middle1 + middle2) / 2.0;
-        }
     }
 
     public static void main(String[] args) {
