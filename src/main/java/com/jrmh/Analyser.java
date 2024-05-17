@@ -25,7 +25,7 @@ public class Analyser {
         try {
             MqttClient client = new MqttClient(BROKER_URL, CLIENT_ID, new MemoryPersistence());
             MqttConnectOptions connOpts = new MqttConnectOptions();
-            connOpts.setMaxInflight(100); // Set the max inflight messages
+            connOpts.setMaxInflight(1000); // Set the max inflight messages
 
             client.connect(connOpts);
 
@@ -37,7 +37,7 @@ public class Analyser {
                             publishInstructions(client, pubQos, delay, instanceCount);
                             sendReadySignal(client);
                             List<String> messages = listenAndCollectData(client, instanceCount, pubQos, delay, subQos);
-                            analyzeData(messages, pubQos, delay, instanceCount, subQos, maxCounter);
+                            analyzeData(messages, pubQos, delay, instanceCount, subQos);
                         }
                     }
                 }
@@ -77,8 +77,6 @@ public class Analyser {
 
         client.subscribe(topicPath, subQos, (topic, message) -> {
             String payload = new String(message.getPayload());
-            long currentCounter = Long.parseLong(payload);
-            maxCounter = Math.max(maxCounter, currentCounter);
             messages.add(payload);
         });
 
@@ -87,15 +85,16 @@ public class Analyser {
         return messages;
     }
 
-    private void analyzeData(List<String> messages, int pubQos, int delay, int instanceCount, int subQos, long totalExpectedMessages) {
+    private void analyzeData(List<String> messages, int pubQos, int delay, int instanceCount, int subQos) {
         int totalMessages = messages.size();
 
         int outOfOrderCount = 0;
         long totalGap = 0;
-        int previous = -1;
+        long previous = -1;
 
         for (String msg : messages) {
-            int current = Integer.parseInt(msg);
+            long current = Long.parseLong(msg);
+            maxCounter = Math.max(maxCounter, current);
             if (previous != -1 && current < previous) {
                 outOfOrderCount++;
             }
@@ -105,6 +104,7 @@ public class Analyser {
             previous = current;
         }
 
+        long totalExpectedMessages = maxCounter + 1;
         double messageLossRate = ((double) (totalExpectedMessages - totalMessages) / totalExpectedMessages) * 100;
         double outOfOrderRate = ((double) outOfOrderCount / totalMessages) * 100;
         double averageGap = totalMessages > 1 ? (double) totalGap / (totalMessages - 1) : 0;
