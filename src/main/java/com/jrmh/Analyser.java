@@ -4,6 +4,9 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.eclipse.paho.client.mqttv3.*;
 
 import java.util.*;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -16,8 +19,9 @@ public class Analyser {
     private static final String REQUEST_INSTANCE_COUNT = "request/instancecount";
     private static final String READY_TOPIC = "instruction/ready";
     private static final String COMPLETE = "complete";
+    private static final String RESULT_PATH = "result.csv";
 
-    private final int[] delays = {4};
+    private final int[] delays = {0, 1, 2, 4};
     private final int[] qoss = {0, 1, 2};
     private final int[] instanceCounts = {1, 2, 3, 4, 5};
     private long maxCounter = 0;
@@ -36,31 +40,37 @@ public class Analyser {
 
             client.connect(connOpts);
 
-            client.subscribe(COMPLETE, 2, (topic, message) ->{
+            client.subscribe(COMPLETE, 2, (topic, message) -> {
+                this.maxCounter = Long.parseLong(new String(message.getPayload()));
                 this.latch.countDown();
             });
 
-            for (int subQos : qoss) {
-                for (int delay : delays) {
-                    for (int pubQos : qoss) {
-                        for (int instanceCount : instanceCounts) {
-                            this.maxCounter = 0;
-                            this.latch = new CountDownLatch(1);
-                            this.medianMsgGaps = new ArrayList<>();
-                            publishInstructions(client, pubQos, delay, instanceCount);
-                            sendReadySignal(client);
-                            List<Long> messages = listenAndCollectData(client, instanceCount, pubQos, delay, subQos);
-                            analyzeData(messages, pubQos, delay, instanceCount, subQos);
-                            this.latch.await();
+            try (PrintWriter writer = new PrintWriter(new FileWriter(RESULT_PATH, true))) {
+                writer.println("P2B_QoS,A2B_QoS,Delay_(ms),Instance_Count,Total_Messages_Received,Expected_Messages_Received,Message_Loss_Rate_(%),Out_of_Order_Message_Rate_(%),Median_Inter_Message_Gap_(ms)");
+                for (int subQos : qoss) {
+                    for (int delay : delays) {
+                        for (int pubQos : qoss) {
+                            for (int instanceCount : instanceCounts) {
+                                this.maxCounter = 0;
+                                this.latch = new CountDownLatch(1);
+                                this.medianMsgGaps = new ArrayList<>();
+                                publishInstructions(client, pubQos, delay, instanceCount);
+                                sendReadySignal(client);
+                                List<Long> messages = listenAndCollectData(client, subQos);
+                                this.latch.await();
+                                analyzeData(messages, pubQos, delay, instanceCount, subQos, writer);
+                            }
                         }
                     }
                 }
+                client.disconnect();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-
-            client.disconnect();
         } catch (Exception e) {
             e.printStackTrace();
         }
+
     }
 
     private void publishInstructions(MqttClient client, int qos, int delay, int instanceCount) throws MqttException {
@@ -81,13 +91,10 @@ public class Analyser {
         client.publish(READY_TOPIC, readyMsg);
     }
 
-    private List<Long> listenAndCollectData(MqttClient client, int instanceCount, int pubQos, int delay, int subQos) throws MqttException, InterruptedException {
+    private List<Long> listenAndCollectData(MqttClient client, int subQos) throws MqttException, InterruptedException {
         List<Long> messages = new ArrayList<>();
-        CountDownLatch latch = new CountDownLatch(1);
-
+        CountDownLatch timeLatch = new CountDownLatch(1);
         String topicPath = "counter/#";
-        System.out.println("instanceCount: " + instanceCount + " pubQos(P2B): " + pubQos + " delay(ms): " + delay + " subQos(B2A): " + subQos);
-
         client.subscribe(topicPath, subQos, (topic, message) -> {
             String payload = new String(message.getPayload());
             long currentMsgTimestamp = System.currentTimeMillis();
@@ -101,19 +108,19 @@ public class Analyser {
             this.prevMsgTimestamp = currentMsgTimestamp;
         });
 
-        latch.await(TIME, TimeUnit.SECONDS);
+        timeLatch.await(TIME, TimeUnit.SECONDS);
         client.unsubscribe(topicPath);
         return messages;
     }
 
-    private void analyzeData(List<Long> messages, int pubQos, int delay, int instanceCount, int subQos) {
+    private void analyzeData(List<Long> messages, int pubQos, int delay, int instanceCount, int subQos, PrintWriter writer) {
         int totalMessages = messages.size();
 
         int outOfOrderCount = 0;
         long previous = -1;
 
         for (long msg : messages) {
-            maxCounter = Math.max(maxCounter, msg);
+            // maxCounter = Math.max(maxCounter, msg);
             if (previous != -1 && msg < previous) {
                 outOfOrderCount++;
             }
@@ -124,19 +131,11 @@ public class Analyser {
         double messageLossRate = ((double) (totalExpectedMessages - totalMessages) / totalExpectedMessages) * 100;
         double outOfOrderRate = ((double) outOfOrderCount / totalMessages) * 100;
         double medianMsgGap = getMedian(this.medianMsgGaps);
+        System.out.println("instanceCount: " + instanceCount + ", pubQos(P2B): " + pubQos + ", delay(ms): " + delay + ", subQos(B2A): " + subQos);
+        // Write results to CSV
+        writer.printf("%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.1f%n",
+                pubQos, subQos, delay, instanceCount, totalMessages, totalExpectedMessages, messageLossRate, outOfOrderRate, medianMsgGap);
 
-        System.out.println("=== Test Configuration ===");
-        System.out.println("Pub QoS: " + pubQos);
-        System.out.println("Sub QoS: " + subQos);
-        System.out.println("Delay: " + delay + "ms");
-        System.out.println("Instance Count: " + instanceCount);
-        System.out.println("--- Results ---");
-        System.out.println("Total Messages Received: " + totalMessages);
-        System.out.println("Expected Messages: " + totalExpectedMessages);
-        System.out.println("Message Loss Rate: " + String.format("%.2f", messageLossRate) + "%");
-        System.out.println("Out-of-Order Message Rate: " + String.format("%.2f", outOfOrderRate) + "%");
-        System.out.println("Median Inter-Message Gap: " + String.format("%.1f", medianMsgGap) + "ms");
-        System.out.println("--------------------------");
     }
 
     private double getMedian(List<Long> list) {

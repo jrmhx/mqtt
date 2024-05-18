@@ -84,9 +84,10 @@ public class Publisher {
                 doneLatch.await();
 
                 if (instance == MASTER) {
+                    long maxCounter = counter.get();
                     counter.set(0);
                     doneLatch = new CountDownLatch(6);
-                    String message = "1";
+                    String message = Long.toString(maxCounter);
                     MqttMessage mqttMessage = new MqttMessage(message.getBytes());
                     mqttMessage.setQos(2);
                     try {
@@ -95,10 +96,6 @@ public class Publisher {
                         e.printStackTrace();
                     }
                 }
-
-
-                // Sleep briefly before checking for new instructions
-                // Thread.sleep(TIME);
             }
         } catch (Exception e) {
             e.printStackTrace();
