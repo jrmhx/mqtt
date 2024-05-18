@@ -5,7 +5,6 @@ import org.eclipse.paho.client.mqttv3.*;
 
 import java.util.*;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
