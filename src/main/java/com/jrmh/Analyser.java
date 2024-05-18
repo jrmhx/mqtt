@@ -8,7 +8,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class Analyser {
-    private static final int TIME = 1;
+    private static final int TIME = 60;
     private static final String BROKER_URL = "tcp://localhost:1883";
     private static final String CLIENT_ID = "analyser";
     private static final String REQUEST_QOS = "request/qos";
@@ -17,11 +17,11 @@ public class Analyser {
     private static final String READY_TOPIC = "instruction/ready";
     private static final String COMPLETE = "complete";
 
-    private final int[] delays = {0, 1, 2, 4};
+    private final int[] delays = {4};
     private final int[] qoss = {0, 1, 2};
     private final int[] instanceCounts = {1, 2, 3, 4, 5};
     private long maxCounter = 0;
-    private final List<Long> medianMsgGaps = new ArrayList<>();
+    private List<Long> medianMsgGaps = new ArrayList<>();
     private long prevMsg = -1;
     private long prevMsgTimestamp = -1;
     private CountDownLatch latch = new CountDownLatch(1);
@@ -37,20 +37,21 @@ public class Analyser {
             client.connect(connOpts);
 
             client.subscribe(COMPLETE, 2, (topic, message) ->{
-                latch.countDown();
+                this.latch.countDown();
             });
 
             for (int subQos : qoss) {
                 for (int delay : delays) {
                     for (int pubQos : qoss) {
                         for (int instanceCount : instanceCounts) {
-                            maxCounter = 0;
-                            latch = new CountDownLatch(1);
+                            this.maxCounter = 0;
+                            this.latch = new CountDownLatch(1);
+                            this.medianMsgGaps = new ArrayList<>();
                             publishInstructions(client, pubQos, delay, instanceCount);
                             sendReadySignal(client);
                             List<Long> messages = listenAndCollectData(client, instanceCount, pubQos, delay, subQos);
                             analyzeData(messages, pubQos, delay, instanceCount, subQos);
-                            latch.await();
+                            this.latch.await();
                         }
                     }
                 }
@@ -93,7 +94,8 @@ public class Analyser {
             long currentMsg = Long.parseLong(payload);
             messages.add(currentMsg);
             if (this.prevMsg != -1 && currentMsg - prevMsg == 1){
-                medianMsgGaps.add(currentMsgTimestamp - this.prevMsgTimestamp);
+                long gap = currentMsgTimestamp - this.prevMsgTimestamp;
+                medianMsgGaps.add(gap);
             }
             this.prevMsg = currentMsg;
             this.prevMsgTimestamp = currentMsgTimestamp;
@@ -121,8 +123,7 @@ public class Analyser {
         long totalExpectedMessages = maxCounter + 1;
         double messageLossRate = ((double) (totalExpectedMessages - totalMessages) / totalExpectedMessages) * 100;
         double outOfOrderRate = ((double) outOfOrderCount / totalMessages) * 100;
-        Collections.sort(this.medianMsgGaps);
-        long medianMsgGap = medianMsgGaps.get(medianMsgGaps.size() / 2);
+        double medianMsgGap = getMedian(this.medianMsgGaps);
 
         System.out.println("=== Test Configuration ===");
         System.out.println("Pub QoS: " + pubQos);
@@ -134,8 +135,21 @@ public class Analyser {
         System.out.println("Expected Messages: " + totalExpectedMessages);
         System.out.println("Message Loss Rate: " + String.format("%.2f", messageLossRate) + "%");
         System.out.println("Out-of-Order Message Rate: " + String.format("%.2f", outOfOrderRate) + "%");
-        System.out.println("Median Inter-Message Gap: " + medianMsgGap + "ms");
+        System.out.println("Median Inter-Message Gap: " + String.format("%.1f", medianMsgGap) + "ms");
         System.out.println("--------------------------");
+    }
+
+    private double getMedian(List<Long> list) {
+        int size = list.size();
+        if (size == 0) {
+            return 0;
+        }
+        Collections.sort(list);
+        if (size % 2 == 1) { // odd
+            return list.get(size / 2);
+        } else { // even
+            return (list.get((size / 2) - 1) + list.get(size / 2)) / 2.0;
+        }
     }
 
     public static void main(String[] args) {

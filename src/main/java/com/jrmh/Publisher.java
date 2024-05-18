@@ -7,7 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Publisher {
-    private static final int TIME = 1;
+    private static final int TIME = 60;
     private static final String BROKER_URL = "tcp://localhost:1883";
     private static final String CLIENT_ID_PREFIX = "pub-";
     private static final String REQUEST_QOS = "request/qos";
@@ -19,6 +19,7 @@ public class Publisher {
 
     private static CountDownLatch startLatch = new CountDownLatch(1);
     private static CountDownLatch doneLatch = new CountDownLatch(6);
+    private static final int MASTER = 6;
 
     private final int instance;
     private static int qos = 0;
@@ -40,7 +41,7 @@ public class Publisher {
 
             client.connect(connOpts);
 
-            if (instance == 6){
+            if (instance == MASTER){
                 client.subscribe(REQUEST_INSTANCE_COUNT, 2, this::handleRequest);
                 client.subscribe(REQUEST_QOS, 2, this::handleRequest);
                 client.subscribe(REQUEST_DELAY, 2, this::handleRequest);
@@ -52,7 +53,7 @@ public class Publisher {
                 // Wait for start signal from all publisher threads
                 startLatch.await();
 
-                if (instance == 6){
+                if (instance == MASTER){
                     startLatch = new CountDownLatch(1);
                 }
 
@@ -82,7 +83,7 @@ public class Publisher {
                 // Wait for all threads to finish
                 doneLatch.await();
 
-                if (instance == 6) {
+                if (instance == MASTER) {
                     counter.set(0);
                     doneLatch = new CountDownLatch(6);
                     String message = "1";
