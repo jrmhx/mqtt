@@ -12,9 +12,10 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * The Analyzer class sends instructions, collects and analyzes the data.
+ */
 public class Analyser {
-    private final int TIME;
-    private final String BROKER_URL;
     private static final String CLIENT_ID = "analyser";
     private static final String REQUEST_QOS = "request/qos";
     private static final String REQUEST_DELAY = "request/delay";
@@ -23,6 +24,8 @@ public class Analyser {
     private static final String COMPLETE = "complete";
     private static final String RESULT_PATH = "result.csv";
 
+    private final int TIME;
+    private final String BROKER_URL;
     private final int[] delays;
     private final int[] qoss;
     private final int[] instanceCounts;
@@ -33,6 +36,15 @@ public class Analyser {
     private long prevMsgTimestamp = -1;
     private CountDownLatch latch = new CountDownLatch(1);
 
+    /**
+     * Constructs an Analyzer instance.
+     * @param time          the time to run each experiment in seconds
+     *                      (default value is 60 seconds)
+     * @param brokerURL     the URL of the MQTT broker to connect to
+     * @param delays        the array of delays to test in milliseconds
+     * @param qoss          the array of QoS levels to test
+     * @param instanceCounts the array of instance counts to test
+     */
     public Analyser(int time, String brokerURL, int[] delays, int[] qoss, int[] instanceCounts) {
         this.TIME = time;
         this.BROKER_URL = brokerURL;
@@ -41,6 +53,9 @@ public class Analyser {
         this.instanceCounts = instanceCounts;
     }
 
+    /**
+     * Starts the Analyzer, sends instructions to publishers, collects and analyzes the data.
+     */
     public void start() {
         try {
             MqttClient client = new MqttClient(BROKER_URL, CLIENT_ID, new MemoryPersistence());
@@ -52,7 +67,9 @@ public class Analyser {
             client.connect(connOpts);
 
             client.subscribe(COMPLETE, 2, (topic, message) -> {
+                // Get the total number of messages expected
                 this.maxCounter = Long.parseLong(new String(message.getPayload()));
+                // Signal the main thread to continue
                 this.latch.countDown();
             });
 
@@ -62,13 +79,21 @@ public class Analyser {
                     for (int delay : delays) {
                         for (int pubQos : qoss) {
                             for (int instanceCount : instanceCounts) {
+                                // Reset the values for each experiment
                                 this.maxCounter = 0;
                                 this.latch = new CountDownLatch(1);
                                 this.medianMsgGaps = new ArrayList<>();
+                                this.prevMsg = -1;
+                                this.prevMsgTimestamp = -1;
+                                // Send instructions to publishers
                                 publishInstructions(client, pubQos, delay, instanceCount);
+                                // finish instruction publishing, send ready signal to publishers to start publishing
                                 sendReadySignal(client);
+                                // Listen and collect data
                                 List<Long> messages = listenAndCollectData(client, subQos);
+                                // wait for all publishers to finish publishing, get the max counter as total expected messages number
                                 this.latch.await();
+                                // Analyze the data
                                 analyzeData(messages, pubQos, delay, instanceCount, subQos, writer);
                             }
                         }
@@ -84,6 +109,15 @@ public class Analyser {
 
     }
 
+    /**
+     * Publishes the instructions to the publishers.
+     *
+     * @param client        the MQTT client
+     * @param qos           the QoS level
+     * @param delay         the delay between messages
+     * @param instanceCount the number of publisher instances
+     * @throws MqttException if an error occurs while publishing
+     */
     private void publishInstructions(MqttClient client, int qos, int delay, int instanceCount) throws MqttException {
         MqttMessage insCntMsg = new MqttMessage(Integer.toString(instanceCount).getBytes());
         insCntMsg.setQos(2);
@@ -96,12 +130,27 @@ public class Analyser {
         client.publish(REQUEST_DELAY, delayMsg);
     }
 
+    /**
+     * Sends the ready signal to the publishers.
+     *
+     * @param client the MQTT client
+     * @throws MqttException if an error occurs while publishing
+     */
     private void sendReadySignal(MqttClient client) throws MqttException {
         MqttMessage readyMsg = new MqttMessage("ready".getBytes());
         readyMsg.setQos(2);
         client.publish(READY_TOPIC, readyMsg);
     }
 
+    /**
+     * Listens for messages and collects the data.
+     *
+     * @param client the MQTT client
+     * @param subQos the QoS level to subscribe to
+     * @return the list of messages received
+     * @throws MqttException if an error occurs while subscribing
+     * @throws InterruptedException if the thread is interrupted
+     */
     private List<Long> listenAndCollectData(MqttClient client, int subQos) throws MqttException, InterruptedException {
         List<Long> messages = new ArrayList<>();
         CountDownLatch timeLatch = new CountDownLatch(1);
@@ -124,6 +173,16 @@ public class Analyser {
         return messages;
     }
 
+    /**
+     * Analyzes the data and writes the results to a CSV file.
+     *
+     * @param messages      the list of messages received
+     * @param pubQos        the QoS level of the publisher
+     * @param delay         the delay between messages
+     * @param instanceCount the number of publisher instances
+     * @param subQos        the QoS level of the subscriber
+     * @param writer        the PrintWriter to write the results to
+     */
     private void analyzeData(List<Long> messages, int pubQos, int delay, int instanceCount, int subQos, PrintWriter writer) {
         int totalMessages = messages.size();
 
@@ -149,6 +208,12 @@ public class Analyser {
 
     }
 
+    /**
+     * Calculates the median of a list of long values.
+     *
+     * @param list the list of long values
+     * @return the median of the list
+     */
     private double getMedian(List<Long> list) {
         int size = list.size();
         if (size == 0) {
@@ -162,6 +227,11 @@ public class Analyser {
         }
     }
 
+    /**
+     * The main method to start the Analyser.
+     *
+     * @param args the command line arguments
+     */
     public static void main(String[] args) {
         int time = 60; // default value 60 seconds
         String brokerUrl = "tcp://localhost:1883"; // default value

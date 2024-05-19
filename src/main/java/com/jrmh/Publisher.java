@@ -5,6 +5,11 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * The Publisher class represents an MQTT publisher client that subscribes to request topics,
+ * listens for instructions, and publishes messages to specified topics. The class also includes
+ * a master publisher that coordinates the start and completion of publishing tasks among multiple publishers.
+ */
 public class Publisher {
     private static final String CLIENT_ID_PREFIX = "pub-";
     private static final String REQUEST_QOS = "request/qos";
@@ -25,12 +30,22 @@ public class Publisher {
     private static int delay = 0;
     private static int activeInstances = 0;
 
+    /**
+     * Constructs a Publisher instance.
+     *
+     * @param time      the duration for which the publisher should publish messages
+     * @param brokerURL the URL of the MQTT broker
+     * @param instance  the instance number of this publisher
+     */
     public Publisher(int time, String brokerURL, int instance) {
         this.TIME = time;
         this.BROKER_URL = brokerURL;
         this.instance = instance;
     }
 
+    /**
+     * Starts the publisher client and publishes messages to the broker.
+     */
     public void start() {
         try {
             MqttClient client = new MqttClient(BROKER_URL, CLIENT_ID_PREFIX + instance, new MemoryPersistence());
@@ -42,6 +57,7 @@ public class Publisher {
 
             client.connect(connOpts);
 
+            // Subscribe to request topics if this is the master publisher
             if (instance == MASTER){
                 client.subscribe(REQUEST_INSTANCE_COUNT, 2, this::handleRequest);
                 client.subscribe(REQUEST_QOS, 2, this::handleRequest);
@@ -54,10 +70,12 @@ public class Publisher {
                 // Wait for start signal from all publisher threads
                 startLatch.await();
 
+                // reset startLatch for next experiment
                 if (instance == MASTER){
                     startLatch = new CountDownLatch(1);
                 }
 
+                // Publish messages
                 if (instance <= activeInstances) {
                     System.out.println("actIns: " + activeInstances +", instance: "+ instance + ", qos: " + qos + ", delay: " + delay);
                     long endTime = System.currentTimeMillis() + TIME * 1000; // convert s to ms
@@ -84,9 +102,13 @@ public class Publisher {
                 // Wait for all threads to finish
                 doneLatch.await();
 
+                // Reset counter and latch for next experiment
                 if (instance == MASTER) {
+                    // Send the max counter value to the master publisher
                     long maxCounter = counter.get();
+                    // Reset counter and latch for next experiment
                     counter.set(0);
+                    // Reset doneLatch for next experiment
                     doneLatch = new CountDownLatch(6);
                     String message = Long.toString(maxCounter);
                     MqttMessage mqttMessage = new MqttMessage(message.getBytes());
@@ -103,6 +125,12 @@ public class Publisher {
         }
     }
 
+    /**
+     * Handles the ready signal to start all publisher threads.
+     *
+     * @param topic   the topic of the ready signal
+     * @param message the message containing the ready signal
+     */
     private void handleRequest(String topic, MqttMessage message) {
         String payload = new String(message.getPayload());
         switch (topic) {
@@ -118,11 +146,22 @@ public class Publisher {
         }
     }
 
+    /**
+     * Handles the ready signal to start all publisher threads.
+     *
+     * @param topic   the topic of the ready signal
+     * @param message the message containing the ready signal
+     */
     private void handleReady(String topic, MqttMessage message) {
         // Signal all threads to start when receiving the ready message
         startLatch.countDown();
     }
 
+    /**
+     * The main method that starts the publisher pool.
+     *
+     * @param args the command line arguments
+     */
     public static void main(String[] args) {
         int time = 60; // default value 60 seconds
         String brokerUrl = "tcp://localhost:1883"; // default value
