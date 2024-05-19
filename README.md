@@ -82,7 +82,7 @@ To conduct a successful experiment you need to:
 
 **Please note** that the above commands run the experiment using the parameter setting as Assignment 3 required (3x3x4x5=180 tests, 60s per test).
 This could take a very long period of time (a little more than 3h).
-If you only want to verify the correctness of the program (like to see if there is any dead lock or race condition), feel free to use some custmized parameters. How to use custmized parameters are mentioned below in `Usage` section.
+If you only want to verify the correctness of the program (like to see if there is any dead lock or race condition), feel free to use some custmized parameters. How to use custmized parameters are mentioned in `Usage` section below.
 
 ## Usage
 
