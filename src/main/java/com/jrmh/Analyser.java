@@ -6,6 +6,7 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -22,18 +23,22 @@ public class Analyser {
     private static final String COMPLETE = "complete";
     private static final String RESULT_PATH = "result.csv";
 
-    private final int[] delays = {0, 1, 2, 4};
-    private final int[] qoss = {0, 1, 2};
-    private final int[] instanceCounts = {1, 2, 3, 4, 5};
+    private final int[] delays;
+    private final int[] qoss;
+    private final int[] instanceCounts;
+
     private long maxCounter = 0;
     private List<Long> medianMsgGaps = new ArrayList<>();
     private long prevMsg = -1;
     private long prevMsgTimestamp = -1;
     private CountDownLatch latch = new CountDownLatch(1);
 
-    public Analyser(int time, String brokerURL) {
+    public Analyser(int time, String brokerURL, int[] delays, int[] qoss, int[] instanceCounts) {
         this.TIME = time;
         this.BROKER_URL = brokerURL;
+        this.delays = delays;
+        this.qoss = qoss;
+        this.instanceCounts = instanceCounts;
     }
 
     public void start() {
@@ -160,6 +165,9 @@ public class Analyser {
     public static void main(String[] args) {
         int time = 60; // default value 60 seconds
         String brokerUrl = "tcp://localhost:1883"; // default value
+        int[] delays = {0, 1, 2, 4}; // default values
+        int[] qoss = {0, 1, 2}; // default values
+        int[] instanceCounts = {1, 2, 3, 4, 5}; // default values
         // read command line arguments
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -179,9 +187,34 @@ public class Analyser {
                         return;
                     }
                     break;
+                case "-d":
+                    if (i + 1 < args.length) {
+                        delays = Arrays.stream(args[++i].split(",")).mapToInt(Integer::parseInt).toArray();
+                    } else {
+                        System.err.println("Missing value for -d");
+                        return;
+                    }
+                    break;
+                case "-q":
+                    if (i + 1 < args.length) {
+                        qoss = Arrays.stream(args[++i].split(",")).mapToInt(Integer::parseInt).toArray();
+                    } else {
+                        System.err.println("Missing value for -q");
+                        return;
+                    }
+                    break;
+                case "-i":
+                    if (i + 1 < args.length) {
+                        instanceCounts = Arrays.stream(args[++i].split(",")).mapToInt(Integer::parseInt).toArray();
+                    } else {
+                        System.err.println("Missing value for -i");
+                        return;
+                    }
+                    break;
             }
         }
-
-        new Analyser(time, brokerUrl).start();
+        System.out.println("Analyser started with " + time + " second(s) for each experiment, using broker: " + brokerUrl);
+        new Analyser(time, brokerUrl, delays, qoss, instanceCounts).start();
+        System.out.println("Analyser finished");
     }
 }

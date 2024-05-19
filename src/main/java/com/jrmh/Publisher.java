@@ -2,7 +2,6 @@ package com.jrmh;
 
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
-
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -148,6 +147,7 @@ public class Publisher {
                     break;
             }
         }
+        System.out.println("Publisher Pool started with " + time + " second(s) for each experiment, using broker: " + brokerUrl);
         for (int i = 1; i <= 6; i++) {
             int instance = i;
             int finalTime = time;
