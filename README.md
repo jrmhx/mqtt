@@ -138,8 +138,10 @@ To run the Analyser with default settings:
 ./gradlew runAnalyser
 ```
 
+Run Analyser with custom settings:
+
 ```bash
-./gradlew runAnalyser -Ptime=60 -Pbroker="tcp://localhost:1883" -Pdelays="0,1,2,4" -Pqoss="0,1,2" -PinstanceCounts="1,2,3,4,5"
+./gradlew runAnalyser -Ptime=10 -Pbroker="tcp://localhost:1883" -Pdelays="0,1,2,4,5" -Pqoss="0,1,2" -PinstanceCounts="1,2,3,4,5"
 ```
 
 Or you can leave only some of the arguments default, for example use the default broker URL:
