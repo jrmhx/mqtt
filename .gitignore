@@ -48,4 +48,4 @@ Desktop.ini
 $RECYCLE.BIN/
 $Recycle.Bin/
 
-*.ipynb
+data/analysis.ipynb
