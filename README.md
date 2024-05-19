@@ -63,6 +63,27 @@ Under the project root directory, run the following commands to build the applic
 
 If you don't have the required JDK installed in your system, it might take a while for gradle to fetch and install the JDK (several hundreds MB) for you. Please be patient 😸.
 
+## Run
+
+To conduct a successful experiment you need to:
+
+1. Under the project root fold;
+2. Open one terminal located in root folder and run:
+
+    ```bash
+    ./gradlew runPublisher
+    ```
+
+3. Open another terminal located in root folder and run:
+
+    ```bash
+    ./gradlew runAnalyser
+    ```
+
+**Please note** that the above commands run the experiment using the parameter setting as Assignment 3 required (3x3x4x5=180 tests, 60s per test).
+This could take a very long period of time (a little more than 3h).
+If you only want to verify the correctness of the program (like to see if there is any dead lock or race condition), feel free to use some custmized parameters. How to use custmized parameters are mentioned below in `Usage` section.
+
 ## Usage
 
 The applications accept the following cli arguments:
