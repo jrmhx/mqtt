@@ -191,7 +191,8 @@ The code has been tested on my local machine with some edge cases, and it seems 
   - `Message_Loss_Rate_(%)`: The percentage of messages lost during the test.
   - `Out_of_Order_Message_Rate_(%)`: The percentage of messages received out of order.
   - `Median_Inter_Message_Gap_(ms)`: The median time gap in milliseconds between consecutive messages.
-- We konw the Analyser read timer and Publisher pub timer are both 60s in the experiment(or as we config in CLI parameters). So the `Message Rate` and all other value that I might use in the report can be caluated. I'll mention more details in the report about how I get them.
+  - `msg_rate_(msg/s)`: Analyser reading message rate in messages per second.
+- All other value that I might use in the report can be caluated from the csv file. I'll mention more details in the report about how I get them.
 
 ## Documentation
 

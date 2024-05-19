@@ -74,7 +74,7 @@ public class Analyser {
             });
 
             try (PrintWriter writer = new PrintWriter(new FileWriter(RESULT_PATH, true))) {
-                writer.println("P2B_QoS,A2B_QoS,Delay_(ms),Instance_Count,Total_Messages_Received,Expected_Messages_Received,Message_Loss_Rate_(%),Out_of_Order_Message_Rate_(%),Median_Inter_Message_Gap_(ms)");
+                writer.println("P2B_QoS,A2B_QoS,Delay_(ms),Instance_Count,Total_Messages_Received,Expected_Messages_Received,Message_Loss_Rate_(%),Out_of_Order_Message_Rate_(%),Median_Inter_Message_Gap_(ms),msg_rate_(msg/s)");
                 for (int subQos : qoss) {
                     for (int delay : delays) {
                         for (int pubQos : qoss) {
@@ -201,10 +201,11 @@ public class Analyser {
         double messageLossRate = ((double) (totalExpectedMessages - totalMessages) / totalExpectedMessages) * 100;
         double outOfOrderRate = ((double) outOfOrderCount / totalMessages) * 100;
         double medianMsgGap = getMedian(this.medianMsgGaps);
+        double msgRate = totalMessages / (double) TIME;
         System.out.println("instanceCount: " + instanceCount + ", pubQos(P2B): " + pubQos + ", delay(ms): " + delay + ", subQos(B2A): " + subQos);
         // Write results to CSV
-        writer.printf("%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.1f%n",
-                pubQos, subQos, delay, instanceCount, totalMessages, totalExpectedMessages, messageLossRate, outOfOrderRate, medianMsgGap);
+        writer.printf("%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.1f,%.3f%n",
+                pubQos, subQos, delay, instanceCount, totalMessages, totalExpectedMessages, messageLossRate, outOfOrderRate, medianMsgGap,msgRate);
 
     }
 
