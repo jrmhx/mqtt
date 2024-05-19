@@ -11,7 +11,7 @@ repositories {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(20) // Specify your JDK version here
+        languageVersion.set(JavaLanguageVersion.of(22)) // Specify your JDK version here
     }
 }
 
