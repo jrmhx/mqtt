@@ -36,6 +36,7 @@ tasks.register<JavaExec>("runPublisher") {
     val publisherArgs = mutableListOf<String>()
     project.findProperty("time")?.toString()?.let { publisherArgs.addAll(listOf("-t", it)) }
     project.findProperty("broker")?.toString()?.let { publisherArgs.addAll(listOf("-b", it)) }
+    project.findProperty("worker")?.toString()?.let { publisherArgs.addAll(listOf("-w", it)) }
     args = publisherArgs
     javaLauncher.set(javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(22))

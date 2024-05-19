@@ -21,7 +21,7 @@ public class Publisher {
 
     private static CountDownLatch startLatch = new CountDownLatch(1);
     private static CountDownLatch doneLatch = new CountDownLatch(6);
-    private static final int MASTER = 6;
+    private final int MASTER;
 
     private final int TIME;
     private final String BROKER_URL;
@@ -36,11 +36,18 @@ public class Publisher {
      * @param time      the duration for which the publisher should publish messages
      * @param brokerURL the URL of the MQTT broker
      * @param instance  the instance number of this publisher
+     * @param masterId  the instance number of the master publisher
      */
-    public Publisher(int time, String brokerURL, int instance) {
+    public Publisher(int time, String brokerURL, int instance, int masterId) {
         this.TIME = time;
         this.BROKER_URL = brokerURL;
         this.instance = instance;
+        this.MASTER = masterId;
+        if (instance == MASTER) {
+            System.out.println("Master Instance pub-" + instance + " created!");
+        } else {
+            System.out.println("Worker Instance pub-" + instance + " created!");
+        }
     }
 
     /**
@@ -58,7 +65,7 @@ public class Publisher {
             client.connect(connOpts);
 
             // Subscribe to request topics if this is the master publisher
-            if (instance == MASTER){
+            if (this.instance == this.MASTER){
                 client.subscribe(REQUEST_INSTANCE_COUNT, 2, this::handleRequest);
                 client.subscribe(REQUEST_QOS, 2, this::handleRequest);
                 client.subscribe(REQUEST_DELAY, 2, this::handleRequest);
@@ -164,7 +171,8 @@ public class Publisher {
      */
     public static void main(String[] args) {
         int time = 60; // default value 60 seconds
-        String brokerUrl = "tcp://localhost:1883"; // default value
+        String brokerUrl = "tcp://localhost:1883"; // default url
+        int workerNum = 5; // default worker number
         // read command line arguments
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -184,14 +192,28 @@ public class Publisher {
                         return;
                     }
                     break;
+                case "-w":
+                    if (i + 1 < args.length) {
+                        workerNum = Integer.parseInt(args[++i]);
+                    } else {
+                        System.err.println("Missing value for -t");
+                        return;
+                    }
+                    break;
             }
         }
         System.out.println("Publisher Pool started with " + time + " second(s) for each experiment, using broker: " + brokerUrl);
-        for (int i = 1; i <= 6; i++) {
+        int masterInstance = workerNum + 1;
+        System.out.println("Number of worker instances: " + workerNum +", master instance: id:" + masterInstance);
+        if (workerNum < 1) {
+            System.err.println("Number of worker instance must be at least 1!");
+            return;
+        }
+        for (int i = 1; i <= masterInstance; i++) {
             int instance = i;
             int finalTime = time;
             String finalBrokerUrl = brokerUrl;
-            new Thread(() -> new Publisher(finalTime, finalBrokerUrl, instance).start()).start();
+            new Thread(() -> new Publisher(finalTime, finalBrokerUrl, instance, masterInstance).start()).start();
         }
     }
 }

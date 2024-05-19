@@ -92,6 +92,7 @@ The applications accept the following cli arguments:
 
 - `Ptime`: time for each experiment in seconds, the time must be an integer no less than 1.
 - `Pbroker`: the broker URL for the program to connect.
+- `Pworker`: the number of worker instances for this Publisher Pool. It must be an integer no less than 1.
 
 ### Analyser
 
@@ -99,13 +100,14 @@ The applications accept the following cli arguments:
 - `Pbroker`: the broker URL for the program to connect.
 - `Pdelays`: a comma-separated list of delays in milliseconds (e.g., `0,1,2,4`), each delay must be a non-negative integer.
 - `Pqoss`: a comma-separated list of QoS levels (e.g., `0,1,2`), each QoS must be an integer in range [0, 2].
-- `PinstanceCounts`: a comma-separated list of instance counts (e.g., `1,2,3,4,5`), each instance counts must be an integer in range [1, 5].
+- `PinstanceCounts`: a comma-separated list of instance counts (e.g., `1,2,3,4,5`), each instance counts must be an integer no less than 1.
 
 **NOTE:**
 
 - If you leave any CLI arguments blank when running either the `Analyser` or `Publisher`, they will use the default arguments:
   - `Ptime` = `60` (seconds)
   - `Pbroker` = `tcp://localhost:1883`
+  - `Pworker` = `5`
   - `Pdelays` = `0,1,2,4`
   - `Pqoss` = `0,1,2`
   - `PinstanceCounts` = `1,2,3,4,5`
@@ -125,7 +127,7 @@ To run the Publisher with default settings:
 To run the Publisher with custom settings:
 
 ```bash
-./gradlew runPublisher -Ptime=60 -Pbroker="tcp://localhost:1883"
+./gradlew runPublisher -Ptime=10 -Pworker=10 -Pbroker="tcp://localhost:1883"
 ```
 
 Analyser:
@@ -152,8 +154,9 @@ I design and implement a Java multithreaded Master-Worker Pool for the `Publishe
 
 In the Master-Worker Pool in `Publisher.java`:
 
-- There are 5 worker publishers (instance id `1` - `5`), they mainly publisher the message as the instruction that's been published by `Analyser` and announced by the master instance with in the pool;
-- There's 1 master (instance id `6`), it receives the instructions published by `Analyser`, updates global states of the pool, monitors the workers status, and sends the batch of tasks `COMPLETE` signals when ready.
+- By passing the CLI argument `-Pworker=n` to the `Publisher.java` program, you can create `n` worker instance(s) in the pool (it's 5 by default).
+- There are `n` worker publishers (instance id `1` - `n`), they mainly publisher the message as the instruction that's been published by `Analyser` and announced by the master instance with in the pool;
+- There's 1 master (instance id `n+1`), it receives the instructions published by `Analyser`, updates global states of the pool, monitors the workers status, and sends the batch of tasks `COMPLETE` signals when ready.
 
 The object of this handshake process is to ensure:
 
@@ -162,6 +165,7 @@ The object of this handshake process is to ensure:
 3. Only when `Analyser` know that `Publishers` have finished the workload and are ready to start a new batch of msg sending, will `Analyser` start publish new instructions. This can be done by `Publisher` send `Analyser` a `COMPLETE` signal.
 
 The detail of the workflow is like:
+
 1. `Publisher`: The publishers run and await for the instructions from analyzer;
 2. `Analyser`: The analyzer send one set of instructions {`instanceCount`, `QoS` …}
 3. `Publisher`: On receiving the instructions, the publishers starting publish msg (with a timer of 60 sec), there are `CountDownLatch` to synchronize the worker publishers threads that the early finished threads will wait for the working ones;
