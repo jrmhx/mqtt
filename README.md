@@ -4,9 +4,14 @@
 
 ## Requirements
 
+To run the applications you will need:
+
+- A Terminal
 - Java JDK 22 or higher
 - Gradle 8.5 or higher
-- a MQTT broker that can run on your local machine (like Eclipse Mosquitto)
+- A MQTT broker that can run on your local machine (like Eclipse Mosquitto)
+
+**You don't really need to install everything above manually as some heavy lifting environment config can be done by Gradle Wrapper and Plugin. Please read the NOTE below:**
 
 **NOTE:**
 
