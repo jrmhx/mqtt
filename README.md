@@ -126,8 +126,8 @@ I design and implement a Java multithreaded Master-Worker Pool for the `Publishe
 
 In the Master-Worker Pool in `Publisher.java`:
 
-- There're `5` worker publishers (instance id `1` - `5`), they mainly publisher the message as the instruction that's been published by `Analyser` and announced by the master instance with in the pool;
-- There's `1` master, it receives the instructions published by `Analyser`, updates global states of the pool, monitors the workers status, and sends the batch of tasks `COMPLETE` signals when ready.
+- There're 5 worker publishers (instance id `1` - `5`), they mainly publisher the message as the instruction that's been published by `Analyser` and announced by the master instance with in the pool;
+- There's 1 master, it receives the instructions published by `Analyser`, updates global states of the pool, monitors the workers status, and sends the batch of tasks `COMPLETE` signals when ready.
 
 The object of this handshake process is to ensure:
 
