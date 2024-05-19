@@ -1,6 +1,6 @@
 # COMP3310 A3 MQTT Analysis Project
 
-*Jeremiah Xing u7439274*
+*Author: Jeremiah Xing u7439274*
 
 ## Requirements
 
