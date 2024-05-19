@@ -46,7 +46,7 @@ netstat -aon | findstr :1883
 taskkill /PID <The PID you found above> /F
 ```
 
-Or feel free to config your MQTT broker for another port. However, the program's default broker url is `tcp://localhost:1883`. So if you do so please pass the broker url with correct port `tcp://localhost:<port>` as a CLI argument for both `Publisher` and `Analyser` accordingly. Please find how to use the custmized CLI arguments in the `Usage` section below.
+Or feel free to config your MQTT broker for another port. However, the program's default broker url is `tcp://localhost:1883`. So if you do so please pass the broker url with correct port `tcp://localhost:<port>` as a CLI argument for both `Publisher` and `Analyser` accordingly. Please find how to use the customized CLI arguments in the `Usage` section below.
 
 ## Build
 
@@ -60,7 +60,7 @@ If you don't have the required JDK installed in your system, it might take a whi
 
 ## Usage
 
-The applications accepts the following cli arguments:
+The applications accept the following cli arguments:
 
 ### Publisher
 
@@ -126,13 +126,13 @@ I design and implement a Java multithreaded Master-Worker Pool for the `Publishe
 
 In the Master-Worker Pool in `Publisher.java`:
 
-- There're 5 worker publishers (instance id `1` - `5`), they mainly publisher the message as the instruction that's been published by `Analyser` and announced by the master instance with in the pool;
+- There are 5 worker publishers (instance id `1` - `5`), they mainly publisher the message as the instruction that's been published by `Analyser` and announced by the master instance with in the pool;
 - There's 1 master (instance id `6`), it receives the instructions published by `Analyser`, updates global states of the pool, monitors the workers status, and sends the batch of tasks `COMPLETE` signals when ready.
 
 The object of this handshake process is to ensure:
 
-1. The `Publishers` sending msg to the `counter/#` and `Anaylser` receiving are asynchronized so that they can clock the `60` sec period separately, but necessary waiting should provided to ensure correctness.
-2. Only when `Publishers` know that `Analyser` is ready to receive messages, will `Publishers` send messages. This can be seen as when `Analyser` publish new instructions then its ready.
+1. The `Publishers` sending msg to the `counter/#` and `Anaylser` receiving are asynchronized so that they can clock the `60` sec period separately, but necessary waiting should provide to ensure correctness.
+2. Only when `Publishers` know that `Analyser` is ready to receive messages, will `Publishers` send messages. This can be seen as when `Analyser` publish new instructions then it is ready.
 3. Only when `Analyser` know that `Publishers` have finished the workload and are ready to start a new batch of msg sending, will `Analyser` start publish new instructions. This can be done by `Publisher` send `Analyser` a `COMPLETE` signal.
 
 The detail of the workflow is like:
@@ -143,7 +143,7 @@ The detail of the workflow is like:
 5. `Analyser`: After sending a set of instructions the analyzer start reading (with a timer of 60 sec). So that for the msg publishing and receiving on topic `counter/#` we can say that they are asynchronized.  
 6. `Analyser`: When finishing reading the messages, the analyser will wait util it received a `COMPLETE` signal from the publishers. Then send new set of instructions to make sure that all publisher are ready to process a new set of instructions.
 
-The code has been tested on my local machine with some edge cases and it seems to work well and robust.
+The code has been tested on my local machine with some edge cases, and it seems to work well and robust.
 
 ## Output
 
