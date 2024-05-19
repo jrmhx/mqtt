@@ -7,8 +7,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Publisher {
-    private static final int TIME = 60;
-    private static final String BROKER_URL = "tcp://localhost:1883";
     private static final String CLIENT_ID_PREFIX = "pub-";
     private static final String REQUEST_QOS = "request/qos";
     private static final String REQUEST_DELAY = "request/delay";
@@ -21,12 +19,16 @@ public class Publisher {
     private static CountDownLatch doneLatch = new CountDownLatch(6);
     private static final int MASTER = 6;
 
+    private final int TIME;
+    private final String BROKER_URL;
     private final int instance;
     private static int qos = 0;
     private static int delay = 0;
     private static int activeInstances = 0;
 
-    public Publisher(int instance) {
+    public Publisher(int time, String brokerURL, int instance) {
+        this.TIME = time;
+        this.BROKER_URL = brokerURL;
         this.instance = instance;
     }
 
@@ -123,9 +125,34 @@ public class Publisher {
     }
 
     public static void main(String[] args) {
+        int time = 60; // default value 60 seconds
+        String brokerUrl = "tcp://localhost:1883"; // default value
+        // read command line arguments
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "-t":
+                    if (i + 1 < args.length) {
+                        time = Integer.parseInt(args[++i]);
+                    } else {
+                        System.err.println("Missing value for -t");
+                        return;
+                    }
+                    break;
+                case "-b":
+                    if (i + 1 < args.length) {
+                        brokerUrl = args[++i];
+                    } else {
+                        System.err.println("Missing value for -b");
+                        return;
+                    }
+                    break;
+            }
+        }
         for (int i = 1; i <= 6; i++) {
             int instance = i;
-            new Thread(() -> new Publisher(instance).start()).start();
+            int finalTime = time;
+            String finalBrokerUrl = brokerUrl;
+            new Thread(() -> new Publisher(finalTime, finalBrokerUrl, instance).start()).start();
         }
     }
 }

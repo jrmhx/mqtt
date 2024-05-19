@@ -6,10 +6,13 @@
 
 - Java JDK 22 or higher
 - Gradle 8.5 or higher
-- Eclipse Mosquitto, an open source MQTT broker
+- a MQTT broker that can run on your local machine (like Eclipse Mosquitto)
 
-**_NOTE:_** The Gradle Wrapper are already provided in the project root folder: (`./gradlew` for Linux and macOS and `./gradlew.bat` for Windows). So that you don't need to install Gradle in your system if you run the Wrapper according to your system for Gradle tasks.
-The Java toolchain auto download are also set in the Gradle config. Run `./gradlew build` should automatically download the required JDK if it is missing. However, if it doesn't work, please install the JDK manually.
+**NOTE:**
+
+- The Gradle Wrapper are already provided in the project root folder: (`./gradlew` for Linux and macOS and `./gradlew.bat` for Windows). So that you don't need to install Gradle in your system if you run the Wrapper according to your system for Gradle tasks.
+- The Java toolchain auto download are also set in the Gradle config. Run `./gradlew build` should automatically download the required JDK if it is missing. However, if it doesn't work, please install the JDK manually.
+- Ideally the only thing that you need to manually install is the MQTT broker, I'll use Mosquitto as example.
 
 General guides of how to install Gradle, JDK and Mosquitto are also provided below:
 
@@ -17,8 +20,6 @@ General guides of how to install Gradle, JDK and Mosquitto are also provided bel
 - How to install JDK: [OpenJDK JDK 22 General-Availability Release](https://jdk.java.net/22/)
 - How to install Mosquitto [Eclipse Mosquitto](https://mosquitto.org/download/)
 
-
-The output will be saved in the `output.log` file.
 
 ## Build
 

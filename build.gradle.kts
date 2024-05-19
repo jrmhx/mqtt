@@ -33,23 +33,27 @@ tasks.register<JavaExec>("runPublisher") {
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.jrmh.Publisher")
     // Pass CLI arguments to Publisher
-    args = if (project.hasProperty("publisherArgs")) {
-        project.property("publisherArgs").toString().split(",")
-    } else {
-        listOf<String>()
-    }
+    val publisherArgs = mutableListOf<String>()
+    project.findProperty("time")?.toString()?.let { publisherArgs.addAll(listOf("-t", it)) }
+    project.findProperty("broker")?.toString()?.let { publisherArgs.addAll(listOf("-b", it)) }
+    args = publisherArgs
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(22))
+    })
 }
 
 // Define a task to run Analyzer
-tasks.register<JavaExec>("runAnalyzer") {
+tasks.register<JavaExec>("runAnalyser") {
     group = "application"
-    description = "Run the Analyzer application"
+    description = "Run the Analyser application"
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("com.jrmh.Analyser")
     // Pass CLI arguments to Analyzer
-    args = if (project.hasProperty("analyzerArgs")) {
-        project.property("analyzerArgs").toString().split(",")
-    } else {
-        listOf<String>()
-    }
+    val analyzerArgs = mutableListOf<String>()
+    project.findProperty("time")?.toString()?.let { analyzerArgs.addAll(listOf("-t", it)) }
+    project.findProperty("broker")?.toString()?.let { analyzerArgs.addAll(listOf("-b", it)) }
+    args = analyzerArgs
+    javaLauncher.set(javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(22))
+    })
 }

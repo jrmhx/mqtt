@@ -12,8 +12,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class Analyser {
-    private static final int TIME = 60;
-    private static final String BROKER_URL = "tcp://localhost:1883";
+    private final int TIME;
+    private final String BROKER_URL;
     private static final String CLIENT_ID = "analyser";
     private static final String REQUEST_QOS = "request/qos";
     private static final String REQUEST_DELAY = "request/delay";
@@ -30,6 +30,11 @@ public class Analyser {
     private long prevMsg = -1;
     private long prevMsgTimestamp = -1;
     private CountDownLatch latch = new CountDownLatch(1);
+
+    public Analyser(int time, String brokerURL) {
+        this.TIME = time;
+        this.BROKER_URL = brokerURL;
+    }
 
     public void start() {
         try {
@@ -153,6 +158,30 @@ public class Analyser {
     }
 
     public static void main(String[] args) {
-        new Analyser().start();
+        int time = 60; // default value 60 seconds
+        String brokerUrl = "tcp://localhost:1883"; // default value
+        // read command line arguments
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "-t":
+                    if (i + 1 < args.length) {
+                        time = Integer.parseInt(args[++i]);
+                    } else {
+                        System.err.println("Missing value for -t");
+                        return;
+                    }
+                    break;
+                case "-b":
+                    if (i + 1 < args.length) {
+                        brokerUrl = args[++i];
+                    } else {
+                        System.err.println("Missing value for -b");
+                        return;
+                    }
+                    break;
+            }
+        }
+
+        new Analyser(time, brokerUrl).start();
     }
 }
