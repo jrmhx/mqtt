@@ -67,14 +67,30 @@ If you don't have the required JDK installed in your system, it might take a whi
 
 To conduct a successful experiment you need to:
 
-1. Under the project root fold;
-2. Open one terminal located in root folder and run:
+1. Start the MQTT broker on your local machine;
+
+    ```bash
+    mosquitto
+    ```
+
+2. (Optional) If you want to monitor the "$SYS/#" topic, you can open one terminal located in project root folder and run (assuming you have `mosquitto` installed and the broker is running on port `1883`):
+
+    ```bash
+    mosquitto_sub -v -h localhost -p 1883  \
+                                      -t '$SYS/#' \
+                                      -t 'request/#' \
+                                      -t 'instruction/#' \
+                                      -t 'complete' \
+                                      > sys_measurements.log
+    ```
+
+3. Open one terminal located in project root folder and run:
 
     ```bash
     ./gradlew runPublisher
     ```
 
-3. Open another terminal located in root folder and run:
+4. Open another terminal located in project root folder and run:
 
     ```bash
     ./gradlew runAnalyser
