@@ -83,7 +83,7 @@ public class Analyser {
 
             try (PrintWriter writer = new PrintWriter(new FileWriter(RESULT_PATH, true))) {
                 writer.println("P2B_QoS,A2B_QoS,Delay_(ms),Instance_Count,Total_Messages_Received,Expected_Messages_Received,Message_Loss_Rate_(%),Out_of_Order_Message_Rate_(%),Median_Inter_Message_Gap_(ms),msg_rate_(msg/s)");
-                for (int subQos : qoss) {
+                for (int subQos : new int[]{0, 1, 2}) {
                     for (int delay : delays) {
                         for (int pubQos : qoss) {
                             for (int instanceCount : instanceCounts) {
