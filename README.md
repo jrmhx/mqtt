@@ -114,7 +114,8 @@ The applications accept the following cli arguments:
 
 - `Pbroker`: the broker URL for the program to connect.
 - `Pdelays`: a comma-separated list of delays in milliseconds (e.g., `0,1,2,4`), each delay must be a non-negative integer.
-- `Pqoss`: a comma-separated list of QoS levels (e.g., `0,1,2`), each QoS must be an integer in range [0, 2].
+- `Ppqoss`: a comma-separated list of P2B QoS levels (e.g., `0,1,2`), each QoS must be an integer in range [0, 2].
+- `Psqoss`: a comma-separated list of A2B QoS levels (e.g., `0,1,2`), each QoS must be an integer in range [0, 2].
 - `PinstanceCounts`: a comma-separated list of instance counts (e.g., `1,2,3,4,5`), each instance counts must be an integer no less than 1.
 
 **NOTE:**
@@ -124,7 +125,8 @@ The applications accept the following cli arguments:
   - `Pbroker` = `tcp://localhost:1883`
   - `Pworker` = `5`
   - `Pdelays` = `0,1,2,4`
-  - `Pqoss` = `0,1,2`
+  - `Ppqoss` = `0,1,2`
+  - `Psqoss` = `0,1,2`
   - `PinstanceCounts` = `1,2,3,4,5`
 - To ensure the analysis experiment runs successfully, you must use the same set of `Pbroker` for both `Analyser` and `Publisher`.
 - The default `Ptime` is `60` seconds, which is relatively long. If you want to verify the correctness of the programs, feel free to set it small (like `1` second).
@@ -156,13 +158,13 @@ To run the Analyser with default settings:
 Run Analyser with custom settings:
 
 ```bash
-./gradlew runAnalyser -Pbroker="tcp://localhost:1883" -Pdelays="0,1,2,4,5" -Pqoss="0,1,2" -PinstanceCounts="1,2,3,4,5"
+./gradlew runAnalyser -Pbroker="tcp://localhost:1883" -Pdelays="0,1,2,4,5" -Ppqoss="0,1,2" -Psqoss="0,1,2" -PinstanceCounts="1,2,3,4,5"
 ```
 
 Or you can leave only some of the arguments default, for example use the default broker URL:
 
 ```bash
-./gradlew runAnalyser -Pdelays="0,1,2,4" -Pqoss="0,1,2" -PinstanceCounts="1,2,3,4,5"
+./gradlew runAnalyser -Pdelays="0,1,2,4" -Ppqoss="0,1,2" -PinstanceCounts="1,2,3,4,5"
 ```
 
 ## Implementation

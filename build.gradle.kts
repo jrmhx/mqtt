@@ -53,7 +53,8 @@ tasks.register<JavaExec>("runAnalyser") {
     val analyzerArgs = mutableListOf<String>()
     project.findProperty("broker")?.toString()?.let { analyzerArgs.addAll(listOf("-b", it)) }
     project.findProperty("delays")?.toString()?.let { analyzerArgs.addAll(listOf("-d", it)) }
-    project.findProperty("qoss")?.toString()?.let { analyzerArgs.addAll(listOf("-q", it)) }
+    project.findProperty("pqoss")?.toString()?.let { analyzerArgs.addAll(listOf("-p", it)) }
+    project.findProperty("sqoss")?.toString()?.let { analyzerArgs.addAll(listOf("-s", it)) }
     project.findProperty("instanceCounts")?.toString()?.let { analyzerArgs.addAll(listOf("-i", it)) }
     args = analyzerArgs
     javaLauncher.set(javaToolchains.launcherFor {

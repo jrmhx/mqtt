@@ -25,7 +25,8 @@ public class Analyser {
 
     private final String BROKER_URL;
     private final int[] delays;
-    private final int[] qoss;
+    private final int[] pQoss;
+    private final int[] sQoss;
     private final int[] instanceCounts;
 
     private long maxCounter = 0;
@@ -41,13 +42,15 @@ public class Analyser {
      * Constructs an Analyzer instance.
      * @param brokerURL     the URL of the MQTT broker to connect to
      * @param delays        the array of delays to test in milliseconds
-     * @param qoss          the array of QoS levels to test
+     * @param pQoss          the array of pub QoS levels to test
+     * @param sQoss          the array of sub QoS levels to test
      * @param instanceCounts the array of instance counts to test
      */
-    public Analyser(String brokerURL, int[] delays, int[] qoss, int[] instanceCounts) {
+    public Analyser(String brokerURL, int[] delays, int[] pQoss, int[] sQoss, int[] instanceCounts) {
         this.BROKER_URL = brokerURL;
         this.delays = delays;
-        this.qoss = qoss;
+        this.pQoss = pQoss;
+        this.sQoss = sQoss;
         this.instanceCounts = instanceCounts;
     }
 
@@ -86,9 +89,9 @@ public class Analyser {
 
             try (PrintWriter writer = new PrintWriter(new FileWriter(RESULT_PATH, true))) {
                 writer.println("P2B_QoS,A2B_QoS,Delay_(ms),Instance_Count,Total_Messages_Received,Expected_Messages_Received,Message_Loss_Rate_(%),Out_of_Order_Message_Rate_(%),Median_Inter_Message_Gap_(ms),msg_rate_(msg/s)");
-                for (int subQos : new int[]{0, 1, 2}) {
+                for (int subQos : sQoss) {
                     for (int delay : delays) {
-                        for (int pubQos : qoss) {
+                        for (int pubQos : pQoss) {
                             for (int instanceCount : instanceCounts) {
                                 // Reset the values for each experiment
                                 reset();
@@ -233,7 +236,8 @@ public class Analyser {
     public static void main(String[] args) {
         String brokerUrl = "tcp://localhost:1883"; // default value
         int[] delays = {0, 1, 2, 4}; // default values
-        int[] qoss = {0, 1, 2}; // default values
+        int[] pQoss = {0, 1, 2}; // default values
+        int[] sQoss = {0, 1, 2}; // default values
         int[] instanceCounts = {1, 2, 3, 4, 5}; // default values
         // read command line arguments
         for (int i = 0; i < args.length; i++) {
@@ -254,11 +258,19 @@ public class Analyser {
                         return;
                     }
                     break;
-                case "-q":
+                case "-p":
                     if (i + 1 < args.length) {
-                        qoss = Arrays.stream(args[++i].split(",")).mapToInt(Integer::parseInt).toArray();
+                        pQoss = Arrays.stream(args[++i].split(",")).mapToInt(Integer::parseInt).toArray();
                     } else {
-                        System.err.println("Missing value for -q");
+                        System.err.println("Missing value for -p");
+                        return;
+                    }
+                    break;
+                case "-s":
+                    if (i + 1 < args.length) {
+                        sQoss = Arrays.stream(args[++i].split(",")).mapToInt(Integer::parseInt).toArray();
+                    } else {
+                        System.err.println("Missing value for -s");
                         return;
                     }
                     break;
@@ -273,7 +285,7 @@ public class Analyser {
             }
         }
         System.out.println("Analyser started, using broker: " + brokerUrl);
-        new Analyser(brokerUrl, delays, qoss, instanceCounts).start();
+        new Analyser(brokerUrl, delays, pQoss, sQoss, instanceCounts).start();
         System.out.println("Analyser finished");
     }
 }
