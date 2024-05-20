@@ -24,7 +24,6 @@ public class Analyser {
     private static final String COMPLETE = "complete";
     private static final String RESULT_PATH = "result.csv";
 
-    private final int TIME;
     private final String BROKER_URL;
     private final int[] delays;
     private final int[] qoss;
@@ -35,24 +34,33 @@ public class Analyser {
     private long prevMsg = -1;
     private long prevMsgTimestamp = -1;
     private CountDownLatch latch = new CountDownLatch(1);
+    private double listeningTimeSec = 0;
 
     /**
      * Constructs an Analyzer instance.
-     * @param time          the time to run each experiment in seconds
-     *                      (default value is 60 seconds)
      * @param brokerURL     the URL of the MQTT broker to connect to
      * @param delays        the array of delays to test in milliseconds
      * @param qoss          the array of QoS levels to test
      * @param instanceCounts the array of instance counts to test
      */
-    public Analyser(int time, String brokerURL, int[] delays, int[] qoss, int[] instanceCounts) {
-        this.TIME = time;
+    public Analyser(String brokerURL, int[] delays, int[] qoss, int[] instanceCounts) {
         this.BROKER_URL = brokerURL;
         this.delays = delays;
         this.qoss = qoss;
         this.instanceCounts = instanceCounts;
     }
 
+    /**
+     * Reset the values for each experiment
+     */
+    private void reset(){
+        this.maxCounter = 0;
+        this.latch = new CountDownLatch(1);
+        this.medianMsgGaps = new ArrayList<>();
+        this.prevMsg = -1;
+        this.prevMsgTimestamp = -1;
+        this.listeningTimeSec = 0;
+    }
     /**
      * Starts the Analyzer, sends instructions to publishers, collects and analyzes the data.
      */
@@ -80,19 +88,13 @@ public class Analyser {
                         for (int pubQos : qoss) {
                             for (int instanceCount : instanceCounts) {
                                 // Reset the values for each experiment
-                                this.maxCounter = 0;
-                                this.latch = new CountDownLatch(1);
-                                this.medianMsgGaps = new ArrayList<>();
-                                this.prevMsg = -1;
-                                this.prevMsgTimestamp = -1;
+                                reset();
                                 // Send instructions to publishers
                                 publishInstructions(client, pubQos, delay, instanceCount);
                                 // finish instruction publishing, send ready signal to publishers to start publishing
                                 sendReadySignal(client);
                                 // Listen and collect data
                                 List<Long> messages = listenAndCollectData(client, subQos);
-                                // wait for all publishers to finish publishing, get the max counter as total expected messages number
-                                this.latch.await();
                                 // Analyze the data
                                 analyzeData(messages, pubQos, delay, instanceCount, subQos, writer);
                             }
@@ -152,8 +154,9 @@ public class Analyser {
      * @throws InterruptedException if the thread is interrupted
      */
     private List<Long> listenAndCollectData(MqttClient client, int subQos) throws MqttException, InterruptedException {
+        long startTime = System.currentTimeMillis();
         List<Long> messages = new ArrayList<>();
-        CountDownLatch timeLatch = new CountDownLatch(1);
+
         String topicPath = "counter/#";
         client.subscribe(topicPath, subQos, (topic, message) -> {
             String payload = new String(message.getPayload());
@@ -168,7 +171,10 @@ public class Analyser {
             this.prevMsgTimestamp = currentMsgTimestamp;
         });
 
-        timeLatch.await(TIME, TimeUnit.SECONDS);
+        // wait for all publishers to finish publishing, get the max counter as total expected messages number
+        this.latch.await();
+        long endTime = System.currentTimeMillis();
+        this.listeningTimeSec = (endTime - startTime) / 1000.0;
         client.unsubscribe(topicPath);
         return messages;
     }
@@ -201,7 +207,7 @@ public class Analyser {
         double messageLossRate = ((double) (totalExpectedMessages - totalMessages) / totalExpectedMessages) * 100;
         double outOfOrderRate = ((double) outOfOrderCount / totalMessages) * 100;
         double medianMsgGap = getMedian(this.medianMsgGaps);
-        double msgRate = totalMessages / (double) TIME;
+        double msgRate = totalMessages / this.listeningTimeSec;
         System.out.println("instanceCount: " + instanceCount + ", pubQos(P2B): " + pubQos + ", delay(ms): " + delay + ", subQos(B2A): " + subQos);
         // Write results to CSV
         writer.printf("%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.1f,%.3f%n",
@@ -234,7 +240,6 @@ public class Analyser {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        int time = 60; // default value 60 seconds
         String brokerUrl = "tcp://localhost:1883"; // default value
         int[] delays = {0, 1, 2, 4}; // default values
         int[] qoss = {0, 1, 2}; // default values
@@ -242,14 +247,6 @@ public class Analyser {
         // read command line arguments
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
-                case "-t":
-                    if (i + 1 < args.length) {
-                        time = Integer.parseInt(args[++i]);
-                    } else {
-                        System.err.println("Missing value for -t");
-                        return;
-                    }
-                    break;
                 case "-b":
                     if (i + 1 < args.length) {
                         brokerUrl = args[++i];
@@ -284,8 +281,8 @@ public class Analyser {
                     break;
             }
         }
-        System.out.println("Analyser started with " + time + " second(s) for each experiment, using broker: " + brokerUrl);
-        new Analyser(time, brokerUrl, delays, qoss, instanceCounts).start();
+        System.out.println("Analyser started, using broker: " + brokerUrl);
+        new Analyser(brokerUrl, delays, qoss, instanceCounts).start();
         System.out.println("Analyser finished");
     }
 }

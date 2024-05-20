@@ -51,8 +51,10 @@ tasks.register<JavaExec>("runAnalyser") {
     mainClass.set("com.jrmh.Analyser")
     // Pass CLI arguments to Analyzer
     val analyzerArgs = mutableListOf<String>()
-    project.findProperty("time")?.toString()?.let { analyzerArgs.addAll(listOf("-t", it)) }
     project.findProperty("broker")?.toString()?.let { analyzerArgs.addAll(listOf("-b", it)) }
+    project.findProperty("delays")?.toString()?.let { analyzerArgs.addAll(listOf("-d", it)) }
+    project.findProperty("qoss")?.toString()?.let { analyzerArgs.addAll(listOf("-q", it)) }
+    project.findProperty("instanceCounts")?.toString()?.let { analyzerArgs.addAll(listOf("-i", it)) }
     args = analyzerArgs
     javaLauncher.set(javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(22))

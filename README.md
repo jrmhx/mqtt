@@ -96,7 +96,6 @@ The applications accept the following cli arguments:
 
 ### Analyser
 
-- `Ptime`: time for each experiment in seconds, the time must be an integer no less than 1.
 - `Pbroker`: the broker URL for the program to connect.
 - `Pdelays`: a comma-separated list of delays in milliseconds (e.g., `0,1,2,4`), each delay must be a non-negative integer.
 - `Pqoss`: a comma-separated list of QoS levels (e.g., `0,1,2`), each QoS must be an integer in range [0, 2].
@@ -111,7 +110,7 @@ The applications accept the following cli arguments:
   - `Pdelays` = `0,1,2,4`
   - `Pqoss` = `0,1,2`
   - `PinstanceCounts` = `1,2,3,4,5`
-- To ensure the analysis experiment runs successfully, you must use the same set of `Ptime` and `Pbroker` for both `Analyser` and `Publisher`.
+- To ensure the analysis experiment runs successfully, you must use the same set of `Pbroker` for both `Analyser` and `Publisher`.
 - The default `Ptime` is `60` seconds, which is relatively long. If you want to verify the correctness of the programs, feel free to set it small (like `1` second).
 
 ### Examples
@@ -141,13 +140,13 @@ To run the Analyser with default settings:
 Run Analyser with custom settings:
 
 ```bash
-./gradlew runAnalyser -Ptime=10 -Pbroker="tcp://localhost:1883" -Pdelays="0,1,2,4,5" -Pqoss="0,1,2" -PinstanceCounts="1,2,3,4,5"
+./gradlew runAnalyser -Pbroker="tcp://localhost:1883" -Pdelays="0,1,2,4,5" -Pqoss="0,1,2" -PinstanceCounts="1,2,3,4,5"
 ```
 
 Or you can leave only some of the arguments default, for example use the default broker URL:
 
 ```bash
-./gradlew runAnalyser -Ptime=60 -Pdelays="0,1,2,4" -Pqoss="0,1,2" -PinstanceCounts="1,2,3,4,5"
+./gradlew runAnalyser -Pdelays="0,1,2,4" -Pqoss="0,1,2" -PinstanceCounts="1,2,3,4,5"
 ```
 
 ## Implementation
@@ -162,7 +161,7 @@ In the Master-Worker Pool in `Publisher.java`:
 
 The object of this handshake process is to ensure:
 
-1. The `Publishers` sending msg to the `counter/#` and `Anaylser` receiving are asynchronized so that they can clock the `60` sec period separately, but necessary waiting should provide to ensure correctness.
+1. The `Publishers` sending msg to the `counter/#` and `Anaylser` receiving are asynchronized, but necessary waiting should provide to ensure correctness.
 2. Only when `Publishers` know that `Analyser` is ready to receive messages, will `Publishers` send messages. This can be seen as when `Analyser` publish new instructions then it is ready.
 3. Only when `Analyser` know that `Publishers` have finished the workload and are ready to start a new batch of msg sending, will `Analyser` start publish new instructions. This can be done by `Publisher` send `Analyser` a `COMPLETE` signal.
 
