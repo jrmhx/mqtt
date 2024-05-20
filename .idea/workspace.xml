@@ -5,6 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9e54d997-1b98-4ce2-bd5b-f0b3815e5b3e" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/analysis.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/data/analysis.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/sys_measurements.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/result.csv" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/jrmh/Analyser.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/jrmh/Analyser.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -102,7 +107,7 @@
       <workItem from="1716106014717" duration="12840000" />
       <workItem from="1716119954699" duration="2598000" />
       <workItem from="1716128282212" duration="14754000" />
-      <workItem from="1716167375670" duration="2541000" />
+      <workItem from="1716167375670" duration="9580000" />
     </task>
     <servers />
   </component>

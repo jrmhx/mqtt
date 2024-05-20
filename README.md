@@ -81,7 +81,7 @@ To conduct a successful experiment you need to:
                                       -t 'request/#' \
                                       -t 'instruction/#' \
                                       -t 'complete' \
-                                      > sys_measurements.log
+                                      > sys.log
     ```
 
 3. Open one terminal located in project root folder and run:

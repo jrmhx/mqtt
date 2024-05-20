@@ -10,7 +10,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /**
  * The Analyzer class sends instructions, collects and analyzes the data.
@@ -35,6 +34,8 @@ public class Analyser {
     private long prevMsgTimestamp = -1;
     private CountDownLatch latch = new CountDownLatch(1);
     private double listeningTimeSec = 0;
+    private int totalMessages = 0;
+    private int outOfOrderCount = 0;
 
     /**
      * Constructs an Analyzer instance.
@@ -60,6 +61,8 @@ public class Analyser {
         this.prevMsg = -1;
         this.prevMsgTimestamp = -1;
         this.listeningTimeSec = 0;
+        this.totalMessages = 0;
+        this.outOfOrderCount = 0;
     }
     /**
      * Starts the Analyzer, sends instructions to publishers, collects and analyzes the data.
@@ -94,9 +97,9 @@ public class Analyser {
                                 // finish instruction publishing, send ready signal to publishers to start publishing
                                 sendReadySignal(client);
                                 // Listen and collect data
-                                List<Long> messages = listenAndCollectData(client, subQos);
+                                listenAndCollectData(client, subQos);
                                 // Analyze the data
-                                analyzeData(messages, pubQos, delay, instanceCount, subQos, writer);
+                                analyzeData(pubQos, delay, instanceCount, subQos, writer);
                             }
                         }
                     }
@@ -149,20 +152,23 @@ public class Analyser {
      *
      * @param client the MQTT client
      * @param subQos the QoS level to subscribe to
-     * @return the list of messages received
      * @throws MqttException if an error occurs while subscribing
      * @throws InterruptedException if the thread is interrupted
      */
-    private List<Long> listenAndCollectData(MqttClient client, int subQos) throws MqttException, InterruptedException {
+    private void listenAndCollectData(MqttClient client, int subQos) throws MqttException, InterruptedException {
         long startTime = System.currentTimeMillis();
-        List<Long> messages = new ArrayList<>();
 
         String topicPath = "counter/#";
         client.subscribe(topicPath, subQos, (topic, message) -> {
             String payload = new String(message.getPayload());
             long currentMsgTimestamp = System.currentTimeMillis();
             long currentMsg = Long.parseLong(payload);
-            messages.add(currentMsg);
+            this.totalMessages++;
+            // calculate the out-of-order rate
+            if (this.prevMsg != -1 && currentMsg - prevMsg != 1){
+                this.outOfOrderCount++;
+            }
+            // calculate the median inter-message gap
             if (this.prevMsg != -1 && currentMsg - prevMsg == 1){
                 long gap = currentMsgTimestamp - this.prevMsgTimestamp;
                 medianMsgGaps.add(gap);
@@ -176,33 +182,18 @@ public class Analyser {
         long endTime = System.currentTimeMillis();
         this.listeningTimeSec = (endTime - startTime) / 1000.0;
         client.unsubscribe(topicPath);
-        return messages;
     }
 
     /**
      * Analyzes the data and writes the results to a CSV file.
      *
-     * @param messages      the list of messages received
      * @param pubQos        the QoS level of the publisher
      * @param delay         the delay between messages
      * @param instanceCount the number of publisher instances
      * @param subQos        the QoS level of the subscriber
      * @param writer        the PrintWriter to write the results to
      */
-    private void analyzeData(List<Long> messages, int pubQos, int delay, int instanceCount, int subQos, PrintWriter writer) {
-        int totalMessages = messages.size();
-
-        int outOfOrderCount = 0;
-        long previous = -1;
-
-        for (long msg : messages) {
-            // maxCounter = Math.max(maxCounter, msg);
-            if (previous != -1 && msg < previous) {
-                outOfOrderCount++;
-            }
-            previous = msg;
-        }
-
+    private void analyzeData(int pubQos, int delay, int instanceCount, int subQos, PrintWriter writer) {
         long totalExpectedMessages = maxCounter + 1;
         double messageLossRate = ((double) (totalExpectedMessages - totalMessages) / totalExpectedMessages) * 100;
         double outOfOrderRate = ((double) outOfOrderCount / totalMessages) * 100;
