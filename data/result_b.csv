@@ -1,0 +1,4 @@
+P2B_QoS,A2B_QoS,Delay_(ms),Instance_Count,Total_Messages_Received,Expected_Messages_Received,Message_Loss_Rate_(%),Out_of_Order_Message_Rate_(%),Median_Inter_Message_Gap_(ms),msg_rate_(msg/s)
+0,0,0,1,1278549,1281027,0.19,0.00,0.0,127282.130
+0,0,0,5,3766179,4738021,20.51,99.98,0.0,366752.264
+0,0,0,10,3367125,6750095,50.12,99.99,0.0,315776.517
