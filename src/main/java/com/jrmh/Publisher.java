@@ -17,7 +17,8 @@ public class Publisher {
     private static final String REQUEST_INSTANCE_COUNT = "request/instancecount";
     private static final String READY_TOPIC = "instruction/ready";
     private static final String COMPLETE = "complete";
-    private static final AtomicLong counter = new AtomicLong(0);
+    private static final AtomicLong globalCounter = new AtomicLong(0);
+    private final int instanceNum;
 
     private static CountDownLatch startLatch = new CountDownLatch(1);
     private static CountDownLatch doneLatch = new CountDownLatch(6);
@@ -29,6 +30,7 @@ public class Publisher {
     private static int qos = 0;
     private static int delay = 0;
     private static int activeInstances = 0;
+    private long localCounter = 0;
 
     /**
      * Constructs a Publisher instance.
@@ -37,12 +39,15 @@ public class Publisher {
      * @param brokerURL the URL of the MQTT broker
      * @param instance  the instance number of this publisher
      * @param masterId  the instance number of the master publisher
+     * @param instanceNum the total number of instances
      */
-    public Publisher(int time, String brokerURL, int instance, int masterId) {
+    public Publisher(int time, String brokerURL, int instance, int masterId, int instanceNum) {
         this.TIME = time;
         this.BROKER_URL = brokerURL;
         this.instance = instance;
         this.MASTER = masterId;
+        this.instanceNum = instanceNum;
+        doneLatch = new CountDownLatch(instanceNum);
         if (instance == MASTER) {
             System.out.println("Master Instance pub-" + instance + " created!");
         } else {
@@ -89,20 +94,33 @@ public class Publisher {
 
                     while (System.currentTimeMillis() < endTime) {
                         String topic = String.format("counter/%d/%d/%d", instance, qos, delay);
-                        String message = Long.toString(counter.get());
+                        // String message = Long.toString(this.localCounter);
+                        String message = Long.toString(globalCounter.get());
                         MqttMessage mqttMessage = new MqttMessage(message.getBytes());
                         mqttMessage.setQos(qos);
-
                         try {
                             client.publish(topic, mqttMessage);
                         } catch (MqttException e) {
                             e.printStackTrace();
                         }
-                        counter.incrementAndGet();
+                        localCounter++;
+                        globalCounter.incrementAndGet();
                         Thread.sleep(delay);
+                    }
+
+                    // Publish the local counter value to the complete topic
+                    String localTopic = String.format("maxcount/%d", instance);
+                    String localMessage = Long.toString(this.localCounter);
+                    MqttMessage localMqttMessage = new MqttMessage(localMessage.getBytes());
+                    localMqttMessage.setQos(2);
+                    try {
+                        client.publish(localTopic, localMqttMessage);
+                    } catch (MqttException e) {
+                        e.printStackTrace();
                     }
                 }
 
+                this.localCounter = 0;
                 // Signal that this thread is done
                 doneLatch.countDown();
 
@@ -112,11 +130,11 @@ public class Publisher {
                 // Reset counter and latch for next experiment
                 if (instance == MASTER) {
                     // Send the max counter value to the master publisher
-                    long maxCounter = counter.get();
+                    long maxCounter = globalCounter.get();
                     // Reset counter and latch for next experiment
-                    counter.set(0);
+                    globalCounter.set(0);
                     // Reset doneLatch for next experiment
-                    doneLatch = new CountDownLatch(6);
+                    doneLatch = new CountDownLatch(this.instanceNum);
                     String message = Long.toString(maxCounter);
                     MqttMessage mqttMessage = new MqttMessage(message.getBytes());
                     mqttMessage.setQos(2);
@@ -213,7 +231,7 @@ public class Publisher {
             int instance = i;
             int finalTime = time;
             String finalBrokerUrl = brokerUrl;
-            new Thread(() -> new Publisher(finalTime, finalBrokerUrl, instance, masterInstance).start()).start();
+            new Thread(() -> new Publisher(finalTime, finalBrokerUrl, instance, masterInstance, masterInstance).start()).start();
         }
     }
 }
